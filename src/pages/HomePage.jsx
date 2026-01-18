@@ -1,42 +1,36 @@
 // src/pages/HomePage.jsx
-import React, { useState } from 'react';
-import { Box, Typography, IconButton, InputBase, Button, Badge, useTheme } from '@mui/material';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, IconButton, InputBase, Button, Badge, useTheme, List, ListItemButton, ListItemText, ListItemIcon } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 
-// Composants Réutilisables
+// Services & Hooks
+import { searchPlaces } from '../services/mapService';
+import useDebounce from '../hooks/useDebounce'; // <--- LE NOUVEAU HOOK
+
+// Composants
 import VehicleCarousel from '../components/ui/VehicleCarousel'; 
-import VehicleCard from '../components/ui/VehicleCard';
 import AppDrawer from '../components/ui/AppDrawer'; 
+import LeafletMap from '../components/map/LeafletMap';
 
 // Icônes
 import SearchIcon from '@mui/icons-material/Search';
 import MenuIcon from '@mui/icons-material/Menu';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import CloseIcon from '@mui/icons-material/Close';
 
-// --- FOND ANIMÉ ADAPTATIF (JOUR/NUIT) ---
+// --- FOND ANIMÉ ---
 const LiquidBackground = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-
   return (
-    <Box sx={{ 
-      position: 'fixed', inset: 0, zIndex: 0, 
-      // La couleur de fond change automatiquement selon le thème (Noir ou Blanc)
-      bgcolor: theme.palette.background.default, 
-      overflow: 'hidden',
-      transition: 'background-color 0.5s ease' // Transition douce entre jour et nuit
-    }}>
-      {/* Blob Jaune qui flotte */}
+    <Box sx={{ position: 'fixed', inset: 0, zIndex: 0, bgcolor: theme.palette.background.default, overflow: 'hidden', transition: 'background-color 0.5s ease' }}>
       <motion.div
         animate={{ x: [-50, 50, -50], y: [-20, 20, -20], opacity: [0.4, 0.6, 0.4] }}
         transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
         style={{
-          position: 'absolute', top: '20%', left: '10%',
-          width: '250px', height: '250px',
-          // En mode Nuit : Lueur subtile. En mode Jour : Lueur un peu plus forte pour se voir sur le blanc.
-          background: isDark 
-            ? 'radial-gradient(circle, rgba(255,193,7,0.1) 0%, rgba(0,0,0,0) 70%)' 
-            : 'radial-gradient(circle, rgba(255,193,7,0.25) 0%, rgba(255,255,255,0) 70%)',
+          position: 'absolute', top: '20%', left: '10%', width: '250px', height: '250px',
+          background: isDark ? 'radial-gradient(circle, rgba(255,193,7,0.1) 0%, rgba(0,0,0,0) 70%)' : 'radial-gradient(circle, rgba(255,193,7,0.25) 0%, rgba(255,255,255,0) 70%)',
           filter: 'blur(50px)', borderRadius: '50%'
         }}
       />
@@ -46,94 +40,155 @@ const LiquidBackground = () => {
 
 const HomePage = () => {
   const { user } = useSelector((state) => state.auth);
-  const theme = useTheme(); // On récupère le thème pour les conditions
+  const theme = useTheme(); 
   const isDark = theme.palette.mode === 'dark';
-  
-  // État local pour gérer l'ouverture du menu
   const [drawerOpen, setDrawerOpen] = useState(false);
+  
+  // --- ÉTATS DE LA RECHERCHE ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [searchedLocation, setSearchedLocation] = useState(null);
+
+  // Utilisation du Debounce (On attend 500ms après la frappe)
+  const debouncedSearchTerm = useDebounce(searchQuery, 500);
+
+  // EFFET : Déclenche la recherche UNIQUEMENT quand debouncedSearchTerm change
+  useEffect(() => {
+    const doSearch = async () => {
+      if (debouncedSearchTerm && debouncedSearchTerm.length > 2) {
+        const results = await searchPlaces(debouncedSearchTerm);
+        setSuggestions(results);
+      } else {
+        setSuggestions([]);
+      }
+    };
+    doSearch();
+  }, [debouncedSearchTerm]);
+
+  // Handle Input Change (Juste mettre à jour le texte, pas l'API)
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  // Sélection d'un lieu
+  const handleSelectPlace = (place) => {
+    setSearchQuery(place.main_text); // On met le nom court dans la barre
+    setSuggestions([]); // On cache la liste
+    setSearchedLocation([place.lat, place.lon]); // On envoie à la carte
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSuggestions([]);
+    setSearchedLocation(null);
+  };
 
   return (
     <Box sx={{ minHeight: '100vh', position: 'relative', fontFamily: 'sans-serif', overflow: 'hidden' }}>
-      
-      {/* Fond Dynamique */}
       <LiquidBackground />
-
-      {/* Menu Latéral */}
       <AppDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       <Box sx={{ position: 'relative', zIndex: 1, p: 2, pt: 6, height: '100vh', display: 'flex', flexDirection: 'column' }}>
         
         {/* HEADER */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Box>
             <Typography variant="h4" fontWeight="900" sx={{ lineHeight: 1, letterSpacing: -1, mb: 0.5 }}>
-              <span style={{ color: '#FFC107' }}>Y</span>
-              {/* La couleur de "ély" change auto (Blanc la nuit, Noir le jour) */}
-              <span style={{ color: theme.palette.text.primary }}>ély</span>
+              <span style={{ color: '#FFC107' }}>Y</span><span style={{ color: theme.palette.text.primary }}>ély</span>
             </Typography>
             <Typography variant="body1" fontWeight="500" sx={{ color: 'text.secondary' }}>
               Salut, {user ? user.name.split(' ')[0] : 'Kevy'} 👋
             </Typography>
           </Box>
-          
-          {/* BOUTON HAMBURGER */}
-          <IconButton 
-            onClick={() => setDrawerOpen(true)}
-            sx={{ 
-              // Le fond du bouton s'adapte aussi
-              bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', 
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, 
-              color: 'text.primary', 
-              borderRadius: '12px' 
-            }}
-          >
-            <Badge color="error" variant="dot" invisible={false}>
-              <MenuIcon />
-            </Badge>
+          <IconButton onClick={() => setDrawerOpen(true)} sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: 'text.primary', borderRadius: '12px' }}>
+            <Badge color="error" variant="dot"><MenuIcon /></Badge>
           </IconButton>
         </Box>
 
-        {/* INPUT RECHERCHE */}
-        <Box mb={4}>
+        {/* --- BARRE DE RECHERCHE --- */}
+        <Box mb={2} sx={{ position: 'relative', zIndex: 1002 }}> 
           <Box
             sx={{
               display: 'flex', alignItems: 'center',
-              // Glassmorphism adaptatif
-              bgcolor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', 
+              bgcolor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.8)', 
               backdropFilter: 'blur(20px)',
               borderRadius: '16px', p: 0.5, pl: 2,
-              border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}`,
+              border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'}`,
+              boxShadow: suggestions.length > 0 ? '0 10px 30px rgba(0,0,0,0.5)' : 'none',
+              transition: 'all 0.3s'
             }}
           >
             <SearchIcon sx={{ color: '#FFC107', mr: 1 }} />
             <InputBase
-              placeholder="Où va-t-on ?"
+              placeholder="On va où ?"
               fullWidth
-              sx={{ 
-                color: 'text.primary', 
-                fontSize: '1rem', 
-                '& input::placeholder': { color: 'text.secondary', opacity: 0.7 } 
-              }}
+              value={searchQuery}
+              onChange={handleSearchChange} // Ne déclenche plus l'API directement !
+              sx={{ color: 'text.primary', fontSize: '1.1rem', fontWeight: 500 }}
             />
-            <Button 
-              variant="contained" 
-              sx={{ bgcolor: '#FFC107', color: 'black', borderRadius: '12px', minWidth: '40px', px: 2, fontWeight: 'bold' }}
-            >
+            {searchQuery && (
+              <IconButton size="small" onClick={clearSearch} sx={{ color: 'text.secondary' }}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )}
+            <Button variant="contained" sx={{ bgcolor: '#FFC107', color: 'black', borderRadius: '12px', minWidth: '40px', px: 2, fontWeight: 'bold', ml: 1 }}>
                GO
             </Button>
           </Box>
+
+          {/* --- LISTE DES SUGGESTIONS OPTIMISÉE --- */}
+          <AnimatePresence>
+            {suggestions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                style={{
+                  position: 'absolute', top: '110%', left: 0, right: 0,
+                  background: isDark ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(20px)',
+                  borderRadius: '16px', overflow: 'hidden',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}
+              >
+                <List dense sx={{ py: 0 }}>
+                  {suggestions.map((place, index) => (
+                    <React.Fragment key={place.place_id + index}>
+                      <ListItemButton 
+                        onClick={() => handleSelectPlace(place)}
+                        sx={{ py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 40 }}>
+                          <LocationOnIcon sx={{ color: '#FFC107' }} />
+                        </ListItemIcon>
+                        {/* Affichage intelligent : Nom principal en gras, détail en petit */}
+                        <ListItemText 
+                          primary={<Typography variant="body1" color="text.primary" fontWeight="bold">{place.main_text}</Typography>}
+                          secondary={<Typography variant="caption" color="text.secondary" noWrap>{place.secondary_text}</Typography>}
+                        />
+                      </ListItemButton>
+                    </React.Fragment>
+                  ))}
+                </List>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </Box>
 
-        {/* ZONE VIDE (Placeholder Carte) */}
-        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="body2" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-                (La carte s'affichera ici)
-            </Typography>
+        {/* CARTE */}
+        <Box sx={{ 
+          flexGrow: 1, position: 'relative', width: '100%', mb: 2, 
+          borderRadius: '24px', overflow: 'hidden', 
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
+        }}>
+            <LeafletMap searchedLocation={searchedLocation} />
         </Box>
 
         {/* CARROUSEL */}
         <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 2, ml: 1 }}>
+            <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1, ml: 1 }}>
                 Choisissez votre confort
             </Typography>
             <VehicleCarousel />

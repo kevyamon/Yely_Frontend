@@ -1,9 +1,10 @@
+// src/components/ui/AppDrawer.jsx
 import React from 'react';
-import { Box, Typography, Button, Drawer, List, ListItemButton, ListItemIcon, ListItemText, Avatar, Divider, Badge, Switch, Stack } from '@mui/material'; // Ajout Switch, Stack
+import { Box, Typography, Button, Drawer, List, ListItemButton, ListItemIcon, ListItemText, Avatar, Divider, Badge, Switch, Stack } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logout, reset } from '../../features/auth/authSlice';
-import { toggleTheme } from '../../features/theme/themeSlice'; // <--- IMPORT ACTION
+import { toggleTheme } from '../../features/theme/themeSlice';
 
 // Icônes
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
@@ -11,14 +12,14 @@ import PersonIcon from '@mui/icons-material/Person';
 import HistoryIcon from '@mui/icons-material/History';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import DarkModeIcon from '@mui/icons-material/DarkMode'; // Lune
-import LightModeIcon from '@mui/icons-material/LightMode'; // Soleil
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import LightModeIcon from '@mui/icons-material/LightMode';
 
 const AppDrawer = ({ open, onClose }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const { mode } = useSelector((state) => state.theme); // Récupère le mode actuel
+  const { mode } = useSelector((state) => state.theme);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -26,12 +27,17 @@ const AppDrawer = ({ open, onClose }) => {
     navigate('/');
   };
 
+  // Fonction utilitaire pour naviguer et fermer le menu
+  const handleNavigate = (path) => {
+    navigate(path);
+    onClose();
+  };
+
   const drawerContent = (
     <Box 
       sx={{ 
         width: 280, 
         height: '100%', 
-        // On utilise les couleurs du thème maintenant !
         bgcolor: 'background.paper', 
         color: 'text.primary',
         p: 2,
@@ -40,8 +46,15 @@ const AppDrawer = ({ open, onClose }) => {
       }}
       role="presentation"
     >
-      {/* PROFIL */}
-      <Box sx={{ mb: 4, mt: 2, display: 'flex', alignItems: 'center', p: 1 }}>
+      {/* 1. HEADER PROFIL (Cliquable) */}
+      <Box 
+        onClick={() => handleNavigate('/profile')} // <-- CLIC ICI
+        sx={{ 
+          mb: 4, mt: 2, display: 'flex', alignItems: 'center', p: 1, 
+          cursor: 'pointer', borderRadius: 2,
+          '&:hover': { bgcolor: 'action.hover' } 
+        }}
+      >
         <Avatar sx={{ bgcolor: 'primary.main', color: 'black', width: 50, height: 50, mr: 2, fontWeight: 'bold' }}>
           {user ? user.name.charAt(0).toUpperCase() : 'Y'}
         </Avatar>
@@ -58,7 +71,7 @@ const AppDrawer = ({ open, onClose }) => {
 
       <Divider sx={{ mb: 2 }} />
 
-      {/* SWITCH MODE JOUR/NUIT (NOUVEAU) */}
+      {/* SWITCH MODE JOUR/NUIT */}
       <Box sx={{ px: 2, py: 1, mb: 2, bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 3 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Stack direction="row" alignItems="center" spacing={1}>
@@ -75,9 +88,14 @@ const AppDrawer = ({ open, onClose }) => {
         </Stack>
       </Box>
 
-      {/* MENU ITEMS */}
+      {/* MENU ITEMS (Boutons actifs) */}
       <List>
-        <ListItemButton sx={{ borderRadius: 2, mb: 1 }}>
+        
+        {/* 2. NOTIFICATIONS */}
+        <ListItemButton 
+          onClick={() => handleNavigate('/notifications')} 
+          sx={{ borderRadius: 2, mb: 1 }}
+        >
           <ListItemIcon sx={{ color: 'primary.main' }}>
             <Badge badgeContent={2} color="error" sx={{ '& .MuiBadge-badge': { fontSize: 9, height: 15, minWidth: 15 } }}>
               <NotificationsNoneIcon />
@@ -86,14 +104,22 @@ const AppDrawer = ({ open, onClose }) => {
           <ListItemText primary="Notifications" />
         </ListItemButton>
 
-        <ListItemButton sx={{ borderRadius: 2, mb: 1 }}>
+        {/* 3. MES COURSES (History) */}
+        <ListItemButton 
+          onClick={() => handleNavigate('/history')}
+          sx={{ borderRadius: 2, mb: 1 }}
+        >
           <ListItemIcon sx={{ color: 'text.primary' }}>
             <HistoryIcon />
           </ListItemIcon>
           <ListItemText primary="Mes courses" />
         </ListItemButton>
 
-        <ListItemButton sx={{ borderRadius: 2, mb: 1 }}>
+        {/* 4. MON COMPTE */}
+        <ListItemButton 
+          onClick={() => handleNavigate('/account')}
+          sx={{ borderRadius: 2, mb: 1 }}
+        >
           <ListItemIcon sx={{ color: 'text.primary' }}>
             <PersonIcon />
           </ListItemIcon>
@@ -113,6 +139,9 @@ const AppDrawer = ({ open, onClose }) => {
         >
           Se déconnecter
         </Button>
+        <Typography variant="caption" align="center" display="block" sx={{ mt: 2, color: 'text.secondary' }}>
+          Yély App v1.0.0
+        </Typography>
       </Box>
     </Box>
   );
@@ -124,8 +153,7 @@ const AppDrawer = ({ open, onClose }) => {
       onClose={onClose}
       PaperProps={{
         sx: {
-          // Glassmorphism adapté au thème
-          bgcolor: mode === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)', 
+          bgcolor: mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)', 
           backdropFilter: 'blur(10px)',
           boxShadow: '-10px 0 30px rgba(0,0,0,0.2)',
         }
