@@ -1,6 +1,7 @@
 // src/pages/SubscriptionPage.jsx
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, Paper, Radio, useTheme, CircularProgress } from '@mui/material';
+// AJOUT DE 'IconButton' dans les imports
+import { Box, Typography, Button, Paper, Radio, useTheme, CircularProgress, IconButton } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +12,7 @@ import { logout, reset } from '../features/auth/authSlice';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // <--- AJOUT IMPORT
 
 const PlanCard = ({ title, price, duration, selected, onClick }) => {
   const theme = useTheme();
@@ -53,14 +55,13 @@ const PlanCard = ({ title, price, duration, selected, onClick }) => {
 };
 
 const SubscriptionPage = () => {
-  const [selectedPlan, setSelectedPlan] = useState('daily'); // 'daily' ou 'weekly'
+  const [selectedPlan, setSelectedPlan] = useState('daily'); 
   
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const { isLoading, isSuccess } = useSelector((state) => state.subscription);
 
-  // Si paiement réussi, on retourne à l'accueil (Le mur tombe)
   useEffect(() => {
     if (isSuccess) {
       dispatch(resetSubscriptionState());
@@ -92,6 +93,21 @@ const SubscriptionPage = () => {
       
       {/* Fond décoratif */}
       <Box sx={{ position: 'absolute', top: -100, right: -100, width: 300, height: 300, bgcolor: '#FFC107', filter: 'blur(150px)', opacity: 0.2 }} />
+
+      {/* --- NOUVEAU BOUTON RETOUR --- */}
+      <Box sx={{ position: 'absolute', top: 20, left: 20, zIndex: 10 }}>
+        <IconButton 
+            onClick={() => navigate(-1)} 
+            sx={{ 
+                bgcolor: 'background.paper', 
+                boxShadow: 3,
+                '&:hover': { bgcolor: 'background.paper' } 
+            }}
+        >
+            <ArrowBackIcon />
+        </IconButton>
+      </Box>
+      {/* ----------------------------- */}
 
       <Box sx={{ zIndex: 1, maxWidth: 500, mx: 'auto', width: '100%' }}>
         
@@ -133,7 +149,6 @@ const SubscriptionPage = () => {
             selected={selectedPlan === 'weekly'} 
             onClick={() => setSelectedPlan('weekly')} 
           />
-          {/* Badge Promo sur la semaine */}
           {selectedPlan === 'weekly' && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
               <Typography variant="caption" sx={{ color: '#4CAF50', display: 'flex', alignItems: 'center', justifyContent: 'center', mt: -1, mb: 2, fontWeight: 'bold' }}>

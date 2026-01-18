@@ -4,12 +4,16 @@ import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { useMemo } from 'react';
 
+// --- IMPORT DU SYSTÈME DE NOTIFICATION GLOBAL ---
+import AppToast from './components/ui/AppToast'; 
+// ------------------------------------------------
+
 // Import des Pages
 import LandingPage from './pages/LandingPage';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
-import SubscriptionPage from './pages/SubscriptionPage';
+import SubscriptionPage from './pages/SubscriptionPage'; // Vérifie bien si c'est dans pages ou features/subscription
 import ProfilePage from './pages/ProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
 import HistoryPage from './pages/HistoryPage';
@@ -19,7 +23,7 @@ function App() {
   // On écoute le mode (light/dark) depuis le Redux Store
   const { mode } = useSelector((state) => state.theme);
 
-  // Création dynamique du thème (S'adapte si tu changes le mode)
+  // Création dynamique du thème
   const theme = useMemo(() => createTheme({
     palette: {
       mode: mode,
@@ -27,7 +31,7 @@ function App() {
         main: '#FFC107', // Le Jaune Yély Iconique
       },
       background: {
-        default: mode === 'dark' ? '#050505' : '#f4f6f8', // Noir Profond vs Gris très clair
+        default: mode === 'dark' ? '#050505' : '#f4f6f8',
         paper: mode === 'dark' ? '#0a0a0a' : '#ffffff',
       },
       text: {
@@ -38,23 +42,19 @@ function App() {
     typography: {
       fontFamily: 'sans-serif',
       button: {
-        textTransform: 'none', // Garde la casse naturelle (Pas de TOUT MAJUSCULE)
+        textTransform: 'none',
         fontWeight: 'bold',
       }
     },
     components: {
       MuiButton: {
         styleOverrides: {
-          root: {
-            borderRadius: 12, // Boutons arrondis modernes
-          },
+          root: { borderRadius: 12 },
         },
       },
       MuiPaper: {
         styleOverrides: {
-          root: {
-            backgroundImage: 'none', // Enlève l'effet "grisâtre" par défaut de MUI en mode nuit
-          },
+          root: { backgroundImage: 'none' },
         },
       },
     },
@@ -62,7 +62,11 @@ function App() {
 
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline /> {/* Reset CSS indispensable pour appliquer le fond noir/blanc */}
+      <CssBaseline /> 
+      
+      {/* 🔥 LE TOAST GLOBAL EST POSÉ ICI : DISPONIBLE PARTOUT 🔥 */}
+      <AppToast />
+      
       <BrowserRouter>
         <Routes>
           {/* PAGE D'ACCUEIL (Publique) */}
@@ -75,7 +79,7 @@ function App() {
           {/* APPLICATION (Privé) */}
           <Route path="/home" element={<HomePage />} />
           
-          {/* ABONNEMENT (Le Mur) */}
+          {/* ABONNEMENT */}
           <Route path="/subscription" element={<SubscriptionPage />} />
 
           {/* PAGES DU MENU LATÉRAL */}
