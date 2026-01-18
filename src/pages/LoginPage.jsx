@@ -19,12 +19,7 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
 
   useEffect(() => {
-    // Si succès ou utilisateur déjà là -> Direction la Home (La Carte)
-    if (isSuccess || user) {
-      navigate('/home'); 
-    }
-    
-    // On reset les erreurs si on quitte la page, mais on ne log plus rien dans la console !
+    if (isSuccess || user) { navigate('/home'); }
     return () => { dispatch(reset()); };
   }, [user, isError, isSuccess, message, navigate, dispatch]);
 
@@ -36,9 +31,20 @@ const LoginPage = () => {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f8f9fa', px: 2, py: 4 }}>
+    <Box sx={{ 
+      minHeight: '100vh', 
+      bgcolor: '#f8f9fa', 
+      px: 2, py: 4,
+      // --- CORRECTIF ANTI-MODE NUIT ---
+      color: 'black',
+      '& .MuiInputBase-root': { color: 'black' },
+      '& .MuiInputLabel-root': { color: '#666' },
+      '& .MuiTypography-root': { color: 'black' }, // Force les titres en noir
+      '& .MuiTypography-colorTextSecondary': { color: '#666 !important' }, // Force les sous-titres en gris
+      // --------------------------------
+    }}>
       <Stack direction="row" alignItems="center" mb={6}>
-        <IconButton onClick={() => navigate('/')} sx={{ mr: 2, bgcolor: 'white', boxShadow: 1 }}>
+        <IconButton onClick={() => navigate('/')} sx={{ mr: 2, bgcolor: 'white', boxShadow: 1, color: 'black' }}>
           <ArrowBackIcon />
         </IconButton>
       </Stack>
@@ -55,12 +61,7 @@ const LoginPage = () => {
         <AppInput name="password" label="Mot de passe" type="password" icon={<LockIcon />} onChange={handleChange} />
 
         <Button 
-          type="submit"
-          variant="contained" 
-          color="primary" 
-          fullWidth 
-          size="large"
-          disabled={isLoading}
+          type="submit" variant="contained" color="primary" fullWidth size="large" disabled={isLoading}
           sx={{ py: 2, borderRadius: 50, fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 10px 20px rgba(255, 193, 7, 0.3)', mt: 4 }}
         >
           {isLoading ? <CircularProgress size={24} color="inherit" /> : "SE CONNECTER"}

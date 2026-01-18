@@ -12,7 +12,7 @@ import SecurityIcon from '@mui/icons-material/Security';
 import FlashOnIcon from '@mui/icons-material/FlashOn';
 import SavingsIcon from '@mui/icons-material/Savings';
 
-// Transition fluide pour le Modal (Compatible MUI pour éviter les erreurs console)
+// Transition fluide pour le Modal
 const Transition = forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
@@ -32,14 +32,8 @@ const SplashScreen = ({ onComplete }) => {
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: 0.5 } }}
       sx={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        bgcolor: '#000000',
-        color: 'white'
+        position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        bgcolor: '#000000', color: 'white'
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -70,15 +64,10 @@ const FeatureItem = ({ icon, title, delay }) => (
     transition={{ delay: delay, duration: 0.5 }}
   >
     <Stack 
-      direction="row" 
-      alignItems="center" 
-      spacing={2} 
-      mb={1.5} 
+      direction="row" alignItems="center" spacing={2} mb={1.5} 
       sx={{ 
-        bgcolor: 'white', 
-        p: 1.5, 
-        borderRadius: 4, 
-        boxShadow: '0 4px 10px rgba(0,0,0,0.03)' 
+        bgcolor: 'white', p: 1.5, borderRadius: 4, boxShadow: '0 4px 10px rgba(0,0,0,0.03)',
+        color: 'black' // <--- FORCE LE TEXTE NOIR ICI
       }}
     >
       <Box sx={{ color: '#FFC107' }}>{icon}</Box>
@@ -97,10 +86,8 @@ const LandingPage = () => {
   const timeoutRef = useRef(null);
 
   const handleVideoEnd = () => {
-    // Pause de 5 secondes avant de relancer
     timeoutRef.current = setTimeout(() => {
       if (videoRef.current) {
-        // Petite promesse pour éviter les erreurs si la vidéo n'est pas prête
         videoRef.current.play().catch(e => console.log("Lecture auto empêchée:", e));
       }
     }, 5000);
@@ -113,7 +100,13 @@ const LandingPage = () => {
   }, []);
 
   return (
-    <Box sx={{ height: '100vh', bgcolor: '#f8f9fa', position: 'relative', overflow: 'hidden' }}>
+    <Box sx={{ 
+      height: '100vh', 
+      bgcolor: '#f8f9fa', // Fond Clair
+      color: '#000000',   // <--- FORCE LE TEXTE NOIR GLOBALE (Anti-Mode Nuit)
+      position: 'relative', 
+      overflow: 'hidden' 
+    }}>
       
       <AnimatePresence>
         {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
@@ -122,54 +115,25 @@ const LandingPage = () => {
       {!showSplash && (
         <Box
           component={motion.div}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8 }}
-          sx={{
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-evenly',
-            alignItems: 'center',
-            p: 3,
-            pb: 4
-          }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}
+          sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly', alignItems: 'center', p: 3, pb: 4 }}
         >
           {/* HEADER */}
           <Box textAlign="center">
              <Typography variant="h3" color="primary" fontWeight="900" sx={{ letterSpacing: -1 }}>Yély</Typography>
-             <Typography variant="body1" color="textSecondary" sx={{ opacity: 0.8 }}>Votre ville, votre trajet.</Typography>
+             {/* Force couleur grise au lieu de textSecondary */}
+             <Typography variant="body1" sx={{ color: '#666', opacity: 0.8 }}>Votre ville, votre trajet.</Typography>
           </Box>
 
-          {/* VIDÉO INTELLIGENTE */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center',
-            width: '100%',
-            maxHeight: '35vh',
-            overflow: 'hidden'
-          }}>
+          {/* VIDÉO */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', maxHeight: '35vh', overflow: 'hidden' }}>
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.8, delay: 0.2 }}
               style={{ display: 'flex', justifyContent: 'center' }}
             >
               <video
-                ref={videoRef}
-                src={welcomeVideo}
-                autoPlay
-                muted
-                playsInline
-                onEnded={handleVideoEnd}
-                style={{ 
-                  height: '100%', 
-                  width: 'auto',
-                  maxHeight: '30vh', 
-                  borderRadius: '20px',
-                  objectFit: 'contain'
-                }}
+                ref={videoRef} src={welcomeVideo} autoPlay muted playsInline onEnded={handleVideoEnd}
+                style={{ height: '100%', width: 'auto', maxHeight: '30vh', borderRadius: '20px', objectFit: 'contain' }}
               />
             </motion.div>
           </Box>
@@ -183,26 +147,12 @@ const LandingPage = () => {
 
           {/* BOUTON COMMANDER */}
           <motion.div 
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 1, type: "spring" }}
+            initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 1, type: "spring" }}
             style={{ width: '100%' }}
           >
             <Button 
-              variant="contained" 
-              color="primary" 
-              fullWidth
-              size="large"
-              onClick={() => setOpenModal(true)}
-              sx={{ 
-                borderRadius: 50, 
-                py: 2,
-                fontSize: '1.1rem',
-                fontWeight: 'bold',
-                boxShadow: '0px 10px 25px rgba(255, 193, 7, 0.5)',
-                textTransform: 'none',
-                color: 'black'
-              }}
+              variant="contained" color="primary" fullWidth size="large" onClick={() => setOpenModal(true)}
+              sx={{ borderRadius: 50, py: 2, fontSize: '1.1rem', fontWeight: 'bold', boxShadow: '0px 10px 25px rgba(255, 193, 7, 0.5)', textTransform: 'none', color: 'black' }}
             >
               Commander un Taxi 🚖
             </Button>
@@ -212,13 +162,8 @@ const LandingPage = () => {
 
       {/* MODAL */}
       <Dialog 
-        open={openModal} 
-        onClose={() => setOpenModal(false)}
-        TransitionComponent={Transition}
-        keepMounted
-        PaperProps={{
-          sx: { borderRadius: 5, padding: 1, width: '90%', maxWidth: '400px', position: 'absolute', bottom: 20, m: 0 }
-        }}
+        open={openModal} onClose={() => setOpenModal(false)} TransitionComponent={Transition} keepMounted
+        PaperProps={{ sx: { borderRadius: 5, padding: 1, width: '90%', maxWidth: '400px', position: 'absolute', bottom: 20, m: 0 } }}
       >
         <DialogContent>
           <Typography variant="h5" align="center" fontWeight="bold" gutterBottom>Bienvenue ! 👋</Typography>

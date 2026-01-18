@@ -28,64 +28,49 @@ const RegisterPage = () => {
     vehicleModel: '', vehiclePlate: '', vehicleColor: ''
   });
 
-  // Gestion des effets de bord (Redirection ou Reset)
   useEffect(() => {
     if (isSuccess || user) {
       navigate('/login');
     }
-    
-    // On reset les erreurs quand on QUITTE la page seulement
-    return () => {
-      dispatch(reset());
-    };
+    return () => { dispatch(reset()); };
   }, [user, isSuccess, navigate, dispatch]);
 
   const handleChange = (e) => {
-    // Si l'utilisateur recommence à taper, on peut effacer l'erreur pour faire propre
     if (isError) dispatch(reset());
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
     const userData = {
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone, // Le format +225 est géré par MuiTelInput
-      password: formData.password,
-      role: role,
-      ...(role === 'driver' && {
-        vehicleModel: formData.vehicleModel,
-        vehiclePlate: formData.vehiclePlate,
-        vehicleColor: formData.vehicleColor,
-      }),
+      name: formData.name, email: formData.email, phone: formData.phone, password: formData.password, role: role,
+      ...(role === 'driver' && { vehicleModel: formData.vehicleModel, vehiclePlate: formData.vehiclePlate, vehicleColor: formData.vehicleColor }),
     };
-
     dispatch(register(userData));
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f8f9fa', px: 2, py: 4 }}>
+    <Box sx={{ 
+      minHeight: '100vh', 
+      bgcolor: '#f8f9fa', 
+      px: 2, py: 4,
+      // --- CORRECTIF ANTI-MODE NUIT ---
+      color: 'black', // Force le texte général en noir
+      '& .MuiInputBase-root': { color: 'black' }, // Force le texte des inputs en noir
+      '& .MuiInputLabel-root': { color: '#666' }, // Force les labels en gris
+      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.2)' }, // Force les bordures visibles
+      // --------------------------------
+    }}>
       
       <Stack direction="row" alignItems="center" mb={2}>
-        <IconButton onClick={() => navigate('/')} sx={{ mr: 2, bgcolor: 'white', boxShadow: 1 }}>
+        <IconButton onClick={() => navigate('/')} sx={{ mr: 2, bgcolor: 'white', boxShadow: 1, color: 'black' }}>
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h5" fontWeight="bold">Créer un compte</Typography>
       </Stack>
 
-      {/* ZONE D'ERREUR BIEN VISIBLE (Avec animation) */}
       <Collapse in={isError}>
-        <Alert 
-          severity="error" 
-          sx={{ 
-            mb: 3, 
-            borderRadius: 3, 
-            boxShadow: '0 4px 12px rgba(255, 0, 0, 0.1)',
-            fontWeight: 'bold'
-          }}
-        >
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 3, boxShadow: '0 4px 12px rgba(255, 0, 0, 0.1)', fontWeight: 'bold' }}>
           {message}
         </Alert>
       </Collapse>
@@ -94,14 +79,9 @@ const RegisterPage = () => {
       <Paper elevation={0} sx={{ p: 1, bgcolor: '#e0e0e0', borderRadius: 50, mb: 4, display: 'flex' }}>
         {['rider', 'driver'].map((r) => (
           <Button
-            key={r}
-            fullWidth
-            onClick={() => setRole(r)}
-            variant={role === r ? 'contained' : 'text'}
+            key={r} fullWidth onClick={() => setRole(r)} variant={role === r ? 'contained' : 'text'}
             sx={{
-              borderRadius: 50,
-              py: 1.5,
-              fontWeight: 'bold',
+              borderRadius: 50, py: 1.5, fontWeight: 'bold',
               bgcolor: role === r ? 'black' : 'transparent',
               color: role === r ? 'white' : 'gray',
               '&:hover': { bgcolor: role === r ? '#333' : '#d5d5d5' }
@@ -120,12 +100,7 @@ const RegisterPage = () => {
 
         <AnimatePresence>
           {role === 'driver' && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              style={{ overflow: 'hidden' }}
-            >
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
               <Box sx={{ mt: 2, p: 3, bgcolor: 'white', borderRadius: 4, border: '1px solid #FFC107', mb: 2 }}>
                 <Typography variant="subtitle2" fontWeight="bold" mb={2} color="primary">INFOS VÉHICULE</Typography>
                 <AppInput name="vehicleModel" value={formData.vehicleModel} label="Modèle (ex: Toyota)" icon={<DirectionsCarIcon />} onChange={handleChange} />
@@ -136,21 +111,14 @@ const RegisterPage = () => {
           )}
         </AnimatePresence>
 
-        <Button 
-          type="submit"
-          variant="contained" 
-          color="primary" 
-          fullWidth 
-          size="large"
-          disabled={isLoading} 
-          sx={{ py: 2, borderRadius: 50, fontWeight: 'bold', fontSize: '1.1rem', mt: 2, boxShadow: '0 10px 20px rgba(255, 193, 7, 0.3)' }}
-        >
+        <Button type="submit" variant="contained" color="primary" fullWidth size="large" disabled={isLoading} 
+          sx={{ py: 2, borderRadius: 50, fontWeight: 'bold', fontSize: '1.1rem', mt: 2, boxShadow: '0 10px 20px rgba(255, 193, 7, 0.3)' }}>
           {isLoading ? <CircularProgress size={24} color="inherit" /> : "S'INSCRIRE"}
         </Button>
       </form>
 
       <Box textAlign="center" mt={3}>
-        <Typography variant="body2" color="textSecondary">
+        <Typography variant="body2" sx={{ color: '#666' }}>
           Déjà un compte ?{' '}
           <span onClick={() => navigate('/login')} style={{ color: '#FFC107', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}>Se connecter</span>
         </Typography>
