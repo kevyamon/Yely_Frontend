@@ -5,11 +5,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logout, reset } from '../../features/auth/authSlice';
 import { toggleTheme } from '../../features/theme/themeSlice';
-
-// --- IMPORT RTK QUERY (La Logique de Fer) ---
 import { useGetNotificationsQuery, useMarkAllAsReadMutation } from '../../features/notifications/notificationsApiSlice';
 
-// Icônes
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import PersonIcon from '@mui/icons-material/Person';
 import HistoryIcon from '@mui/icons-material/History';
@@ -24,36 +21,26 @@ const AppDrawer = ({ open, onClose }) => {
   const { user } = useSelector((state) => state.auth);
   const { mode } = useSelector((state) => state.theme);
 
-  // --- 1. LE GESTIONNAIRE D'ÉTAT (RTK Query) ---
-  // data = les notifs, refetch = fonction pour forcer la mise à jour
+  // Récupération des notifications (Tableau vide par défaut si erreur)
   const { data: notifications = [] } = useGetNotificationsQuery(undefined, {
-    skip: !user, // Ne lance pas la requête si pas connecté
-    refetchOnMountOrArgChange: true, // Rafraîchit à chaque ouverture
+    skip: !user, 
+    refetchOnMountOrArgChange: true,
   });
 
   const [markAllAsRead] = useMarkAllAsReadMutation();
 
-  // --- 2. LE COMPTEUR INTELLIGENT (useMemo) ---
-  // Recalcule UNIQUEMENT si les notifications changent
+  // Calcul dynamique : Si erreur 404, notifications est [], donc unreadCount sera 0
   const unreadCount = useMemo(() => {
     return Array.isArray(notifications) 
       ? notifications.filter(n => !n.isRead).length 
       : 0;
   }, [notifications]);
 
-  // --- 3. LE DÉCLENCHEUR (Clic sur Notifs) ---
   const handleNotificationClick = async () => {
-    // A. Navigation immédiate (UX fluide)
     navigate('/notifications');
     onClose();
-
-    // B. Marquage en arrière-plan (Si y'a des trucs non lus)
     if (unreadCount > 0) {
-      try {
-        await markAllAsRead().unwrap();
-      } catch (err) {
-        console.error('Erreur marquage lu:', err);
-      }
+      try { await markAllAsRead().unwrap(); } catch (err) { console.error(err); }
     }
   };
 
@@ -63,45 +50,26 @@ const AppDrawer = ({ open, onClose }) => {
     navigate('/');
   };
 
-  const handleNavigate = (path) => {
-    navigate(path);
-    onClose();
-  };
+  const handleNavigate = (path) => { navigate(path); onClose(); };
 
   const drawerContent = (
-    <Box 
-      sx={{ 
-        width: 280, height: '100%', 
-        bgcolor: 'background.paper', color: 'text.primary',
-        p: 2, display: 'flex', flexDirection: 'column'
-      }}
-      role="presentation"
-    >
+    <Box sx={{ width: 280, height: '100%', bgcolor: 'background.paper', color: 'text.primary', p: 2, display: 'flex', flexDirection: 'column' }}>
+      
       {/* HEADER PROFIL */}
-      <Box 
-        onClick={() => handleNavigate('/profile')}
-        sx={{ 
-          mb: 4, mt: 2, display: 'flex', alignItems: 'center', p: 1, 
-          cursor: 'pointer', borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } 
-        }}
-      >
+      <Box onClick={() => handleNavigate('/profile')} sx={{ mb: 4, mt: 2, display: 'flex', alignItems: 'center', p: 1, cursor: 'pointer', borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
         <Avatar sx={{ bgcolor: 'primary.main', color: 'black', width: 50, height: 50, mr: 2, fontWeight: 'bold' }}>
           {user ? user.name.charAt(0).toUpperCase() : 'Y'}
         </Avatar>
         <Box>
-          <Typography variant="h6" fontWeight="bold">
-            {user ? user.name.split(' ')[0] : 'Utilisateur'}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Voir mon profil
-          </Typography>
+          <Typography variant="h6" fontWeight="bold">{user ? user.name.split(' ')[0] : 'Utilisateur'}</Typography>
+          <Typography variant="caption" color="text.secondary">Voir mon profil</Typography>
         </Box>
         <ChevronRightIcon sx={{ ml: 'auto', color: 'text.secondary' }} />
       </Box>
 
       <Divider sx={{ mb: 2 }} />
 
-      {/* SWITCH THEME */}
+      {/* SWITCH MODE */}
       <Box sx={{ px: 2, py: 1, mb: 2, bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 3 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Stack direction="row" alignItems="center" spacing={1}>
@@ -113,15 +81,13 @@ const AppDrawer = ({ open, onClose }) => {
       </Box>
 
       <List>
-        {/* BOUTON NOTIFICATIONS INTELLIGENT */}
-        <ListItemButton 
-          onClick={handleNotificationClick} // <-- NOTRE NOUVELLE FONCTION
-          sx={{ borderRadius: 2, mb: 1 }}
-        >
+        {/* BOUTON NOTIFICATIONS CORRIGÉ */}
+        <ListItemButton onClick={handleNotificationClick} sx={{ borderRadius: 2, mb: 1 }}>
           <ListItemIcon sx={{ color: 'primary.main' }}>
             <Badge 
-              badgeContent={unreadCount} // <-- COMPTEUR DYNAMIQUE
+              badgeContent={unreadCount} 
               color="error" 
+              invisible={unreadCount === 0} // <--- C'EST CETTE LIGNE QUI CACHE LE BADGE SI 0
               sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16 } }}
             >
               <NotificationsNoneIcon />
@@ -154,15 +120,7 @@ const AppDrawer = ({ open, onClose }) => {
   );
 
   return (
-    <Drawer
-      anchor="right" open={open} onClose={onClose}
-      PaperProps={{
-        sx: {
-          bgcolor: mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)', 
-          backdropFilter: 'blur(10px)', boxShadow: '-10px 0 30px rgba(0,0,0,0.2)',
-        }
-      }}
-    >
+    <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { bgcolor: mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)', boxShadow: '-10px 0 30px rgba(0,0,0,0.2)' } }}>
       {drawerContent}
     </Drawer>
   );

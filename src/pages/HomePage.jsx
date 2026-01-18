@@ -1,12 +1,14 @@
 // src/pages/HomePage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Box, Typography, IconButton, InputBase, Button, Badge, useTheme, List, ListItemButton, ListItemText, ListItemIcon } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 
 // Services & Hooks
 import { searchPlaces } from '../services/mapService';
-import useDebounce from '../hooks/useDebounce'; // <--- LE NOUVEAU HOOK
+import useDebounce from '../hooks/useDebounce';
+// IMPORT CRUCIAL POUR LE BADGE
+import { useGetNotificationsQuery } from '../features/notifications/notificationsApiSlice';
 
 // Composants
 import VehicleCarousel from '../components/ui/VehicleCarousel'; 
@@ -44,16 +46,27 @@ const HomePage = () => {
   const isDark = theme.palette.mode === 'dark';
   const [drawerOpen, setDrawerOpen] = useState(false);
   
-  // --- ÉTATS DE LA RECHERCHE ---
+  // --- ÉTATS RECHERCHE ---
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [searchedLocation, setSearchedLocation] = useState(null);
 
-  // Utilisation du Debounce (On attend 500ms après la frappe)
+  // --- GESTION INTELLIGENTE DU BADGE (HAMBURGER) ---
+  // On écoute les notifications ici aussi pour savoir si on affiche le point rouge
+  const { data: notifications = [] } = useGetNotificationsQuery(undefined, {
+    skip: !user,
+  });
+
+  const unreadCount = useMemo(() => {
+    return Array.isArray(notifications) 
+      ? notifications.filter(n => !n.isRead).length 
+      : 0;
+  }, [notifications]);
+  // -------------------------------------------------
+
   const debouncedSearchTerm = useDebounce(searchQuery, 500);
 
-  // EFFET : Déclenche la recherche UNIQUEMENT quand debouncedSearchTerm change
-  useEffect(() => {
+  React.useEffect(() => {
     const doSearch = async () => {
       if (debouncedSearchTerm && debouncedSearchTerm.length > 2) {
         const results = await searchPlaces(debouncedSearchTerm);
@@ -65,16 +78,12 @@ const HomePage = () => {
     doSearch();
   }, [debouncedSearchTerm]);
 
-  // Handle Input Change (Juste mettre à jour le texte, pas l'API)
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
-  };
+  const handleSearchChange = (e) => setSearchQuery(e.target.value);
 
-  // Sélection d'un lieu
   const handleSelectPlace = (place) => {
-    setSearchQuery(place.main_text); // On met le nom court dans la barre
-    setSuggestions([]); // On cache la liste
-    setSearchedLocation([place.lat, place.lon]); // On envoie à la carte
+    setSearchQuery(place.main_text);
+    setSuggestions([]);
+    setSearchedLocation([place.lat, place.lon]);
   };
 
   const clearSearch = () => {
@@ -100,12 +109,28 @@ const HomePage = () => {
               Salut, {user ? user.name.split(' ')[0] : 'Kevy'} 👋
             </Typography>
           </Box>
-          <IconButton onClick={() => setDrawerOpen(true)} sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: 'text.primary', borderRadius: '12px' }}>
-            <Badge color="error" variant="dot"><MenuIcon /></Badge>
+          
+          <IconButton 
+            onClick={() => setDrawerOpen(true)}
+            sx={{ 
+              bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', 
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, 
+              color: 'text.primary', 
+              borderRadius: '12px' 
+            }}
+          >
+            {/* C'EST ICI QUE LE BADGE DEVENAIT FOU - MAINTENANT IL EST SAGE */}
+            <Badge 
+              color="error" 
+              variant="dot" 
+              invisible={unreadCount === 0} // <--- IL DISPARAÎT SI 0 NOTIFS
+            >
+              <MenuIcon />
+            </Badge>
           </IconButton>
         </Box>
 
-        {/* --- BARRE DE RECHERCHE --- */}
+        {/* BARRE DE RECHERCHE */}
         <Box mb={2} sx={{ position: 'relative', zIndex: 1002 }}> 
           <Box
             sx={{
@@ -123,7 +148,7 @@ const HomePage = () => {
               placeholder="On va où ?"
               fullWidth
               value={searchQuery}
-              onChange={handleSearchChange} // Ne déclenche plus l'API directement !
+              onChange={handleSearchChange}
               sx={{ color: 'text.primary', fontSize: '1.1rem', fontWeight: 500 }}
             />
             {searchQuery && (
@@ -136,7 +161,7 @@ const HomePage = () => {
             </Button>
           </Box>
 
-          {/* --- LISTE DES SUGGESTIONS OPTIMISÉE --- */}
+          {/* LISTE SUGGESTIONS */}
           <AnimatePresence>
             {suggestions.length > 0 && (
               <motion.div
@@ -162,7 +187,6 @@ const HomePage = () => {
                         <ListItemIcon sx={{ minWidth: 40 }}>
                           <LocationOnIcon sx={{ color: '#FFC107' }} />
                         </ListItemIcon>
-                        {/* Affichage intelligent : Nom principal en gras, détail en petit */}
                         <ListItemText 
                           primary={<Typography variant="body1" color="text.primary" fontWeight="bold">{place.main_text}</Typography>}
                           secondary={<Typography variant="caption" color="text.secondary" noWrap>{place.secondary_text}</Typography>}

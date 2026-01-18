@@ -1,13 +1,16 @@
 // src/features/api/apiSlice.js
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
-// C'est le coeur du système RTK Query
+// Si la variable .env existe, on l'utilise. Sinon, on utilise '/api' (proxy local par défaut)
+const baseUrl = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/api` 
+  : '/api';
+
 export const apiSlice = createApi({
-  reducerPath: 'api', // Nom dans le store
+  reducerPath: 'api',
   baseQuery: fetchBaseQuery({ 
-    baseUrl: '/api', // Proxy configuré dans vite.config.js
+    baseUrl: baseUrl, // <--- C'EST ÇA QUI CHANGE TOUT
     prepareHeaders: (headers, { getState }) => {
-      // Injection automatique du Token s'il existe
       const token = getState().auth.user?.token;
       if (token) {
         headers.set('authorization', `Bearer ${token}`);
@@ -15,6 +18,6 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Notification', 'User'], // Pour le cache automatique
-  endpoints: (builder) => ({}), // On injectera les endpoints depuis les autres fichiers
+  tagTypes: ['Notification', 'User'],
+  endpoints: (builder) => ({}),
 });
