@@ -12,7 +12,7 @@ const SERVICES = [
   {
     id: 'vip',
     title: 'VIP',
-    shortDesc: 'Seul à bord. Climatisation.',
+    shortDesc: 'Seul à bord.', // <--- MODIFICATION ICI (Plus de clim)
     icon: <DiamondIcon sx={{ fontSize: 32 }} />, 
     glow: 'rgba(255, 193, 7, 0.4)'
   },
@@ -48,14 +48,14 @@ const VehicleCarousel = () => {
   };
 
   return (
-    // 1. LE CONTENEUR "FULL BLEED" (L'astuce est ici)
+    // CONTENEUR "FULL BLEED"
     <Box sx={{ 
-      width: '100vw', // Prend toute la largeur de l'écran
+      width: '100vw', 
       position: 'relative',
       left: '50%', 
       right: '50%',
-      marginLeft: '-50vw', // On tire vers la gauche
-      marginRight: '-50vw', // On tire vers la droite
+      marginLeft: '-50vw', 
+      marginRight: '-50vw', 
     }}>
       <Box 
         ref={containerRef}
@@ -64,12 +64,8 @@ const VehicleCarousel = () => {
           overflowX: 'auto', 
           py: 2, 
           width: '100%',
-          
-          // 2. CENTRAGE PRÉCIS DU PREMIER ÉLÉMENT
-          // 50vw (Milieu écran) - 72px (Moitié largeur carte approx + marge)
-          px: 'calc(50vw - 72px)', 
-          
-          '&::-webkit-scrollbar': { display: 'none' }, // Cache scrollbar
+          px: 'calc(50vw - 72px)', // Centrage
+          '&::-webkit-scrollbar': { display: 'none' }, 
           msOverflowStyle: 'none',
           scrollbarWidth: 'none',
           scrollBehavior: 'smooth'
