@@ -1,15 +1,18 @@
 // src/store.js
 import { configureStore } from '@reduxjs/toolkit';
-
-// Import des "cerveaux" (Slices)
 import authReducer from './features/auth/authSlice';
 import themeReducer from './features/theme/themeSlice';
-import subscriptionReducer from './features/subscription/subscriptionSlice'; // <--- C'EST CETTE LIGNE QUI MANQUAIT !
+import subscriptionReducer from './features/subscription/subscriptionSlice';
+import { apiSlice } from './features/api/apiSlice'; // <--- IMPORT
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     theme: themeReducer,
-    subscription: subscriptionReducer, // Ici on l'utilise
+    subscription: subscriptionReducer,
+    [apiSlice.reducerPath]: apiSlice.reducer, // <--- AJOUT REDUCER API
   },
+  // <--- AJOUT MIDDLEWARE INDISPENSABLE POUR RTK QUERY
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(apiSlice.middleware),
 });

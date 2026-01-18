@@ -1,10 +1,13 @@
 // src/components/ui/AppDrawer.jsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, Typography, Button, Drawer, List, ListItemButton, ListItemIcon, ListItemText, Avatar, Divider, Badge, Switch, Stack } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logout, reset } from '../../features/auth/authSlice';
 import { toggleTheme } from '../../features/theme/themeSlice';
+
+// --- IMPORT RTK QUERY (La Logique de Fer) ---
+import { useGetNotificationsQuery, useMarkAllAsReadMutation } from '../../features/notifications/notificationsApiSlice';
 
 // Icônes
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
@@ -21,13 +24,45 @@ const AppDrawer = ({ open, onClose }) => {
   const { user } = useSelector((state) => state.auth);
   const { mode } = useSelector((state) => state.theme);
 
+  // --- 1. LE GESTIONNAIRE D'ÉTAT (RTK Query) ---
+  // data = les notifs, refetch = fonction pour forcer la mise à jour
+  const { data: notifications = [] } = useGetNotificationsQuery(undefined, {
+    skip: !user, // Ne lance pas la requête si pas connecté
+    refetchOnMountOrArgChange: true, // Rafraîchit à chaque ouverture
+  });
+
+  const [markAllAsRead] = useMarkAllAsReadMutation();
+
+  // --- 2. LE COMPTEUR INTELLIGENT (useMemo) ---
+  // Recalcule UNIQUEMENT si les notifications changent
+  const unreadCount = useMemo(() => {
+    return Array.isArray(notifications) 
+      ? notifications.filter(n => !n.isRead).length 
+      : 0;
+  }, [notifications]);
+
+  // --- 3. LE DÉCLENCHEUR (Clic sur Notifs) ---
+  const handleNotificationClick = async () => {
+    // A. Navigation immédiate (UX fluide)
+    navigate('/notifications');
+    onClose();
+
+    // B. Marquage en arrière-plan (Si y'a des trucs non lus)
+    if (unreadCount > 0) {
+      try {
+        await markAllAsRead().unwrap();
+      } catch (err) {
+        console.error('Erreur marquage lu:', err);
+      }
+    }
+  };
+
   const handleLogout = () => {
     dispatch(logout());
     dispatch(reset());
     navigate('/');
   };
 
-  // Fonction utilitaire pour naviguer et fermer le menu
   const handleNavigate = (path) => {
     navigate(path);
     onClose();
@@ -36,23 +71,18 @@ const AppDrawer = ({ open, onClose }) => {
   const drawerContent = (
     <Box 
       sx={{ 
-        width: 280, 
-        height: '100%', 
-        bgcolor: 'background.paper', 
-        color: 'text.primary',
-        p: 2,
-        display: 'flex',
-        flexDirection: 'column'
+        width: 280, height: '100%', 
+        bgcolor: 'background.paper', color: 'text.primary',
+        p: 2, display: 'flex', flexDirection: 'column'
       }}
       role="presentation"
     >
-      {/* 1. HEADER PROFIL (Cliquable) */}
+      {/* HEADER PROFIL */}
       <Box 
-        onClick={() => handleNavigate('/profile')} // <-- CLIC ICI
+        onClick={() => handleNavigate('/profile')}
         sx={{ 
           mb: 4, mt: 2, display: 'flex', alignItems: 'center', p: 1, 
-          cursor: 'pointer', borderRadius: 2,
-          '&:hover': { bgcolor: 'action.hover' } 
+          cursor: 'pointer', borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } 
         }}
       >
         <Avatar sx={{ bgcolor: 'primary.main', color: 'black', width: 50, height: 50, mr: 2, fontWeight: 'bold' }}>
@@ -71,91 +101,65 @@ const AppDrawer = ({ open, onClose }) => {
 
       <Divider sx={{ mb: 2 }} />
 
-      {/* SWITCH MODE JOUR/NUIT */}
+      {/* SWITCH THEME */}
       <Box sx={{ px: 2, py: 1, mb: 2, bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 3 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Stack direction="row" alignItems="center" spacing={1}>
             {mode === 'dark' ? <DarkModeIcon color="primary" /> : <LightModeIcon color="warning" />}
-            <Typography variant="body2" fontWeight="bold">
-              Mode {mode === 'dark' ? 'Nuit' : 'Jour'}
-            </Typography>
+            <Typography variant="body2" fontWeight="bold">Mode {mode === 'dark' ? 'Nuit' : 'Jour'}</Typography>
           </Stack>
-          <Switch 
-            checked={mode === 'dark'} 
-            onChange={() => dispatch(toggleTheme())} 
-            color="primary"
-          />
+          <Switch checked={mode === 'dark'} onChange={() => dispatch(toggleTheme())} color="primary" />
         </Stack>
       </Box>
 
-      {/* MENU ITEMS (Boutons actifs) */}
       <List>
-        
-        {/* 2. NOTIFICATIONS */}
+        {/* BOUTON NOTIFICATIONS INTELLIGENT */}
         <ListItemButton 
-          onClick={() => handleNavigate('/notifications')} 
+          onClick={handleNotificationClick} // <-- NOTRE NOUVELLE FONCTION
           sx={{ borderRadius: 2, mb: 1 }}
         >
           <ListItemIcon sx={{ color: 'primary.main' }}>
-            <Badge badgeContent={2} color="error" sx={{ '& .MuiBadge-badge': { fontSize: 9, height: 15, minWidth: 15 } }}>
+            <Badge 
+              badgeContent={unreadCount} // <-- COMPTEUR DYNAMIQUE
+              color="error" 
+              sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16 } }}
+            >
               <NotificationsNoneIcon />
             </Badge>
           </ListItemIcon>
-          <ListItemText primary="Notifications" />
+          <ListItemText 
+            primary="Notifications" 
+            secondary={unreadCount > 0 ? `${unreadCount} nouvelle(s)` : null}
+            secondaryTypographyProps={{ fontSize: '0.7rem', color: 'error.main' }}
+          />
         </ListItemButton>
 
-        {/* 3. MES COURSES (History) */}
-        <ListItemButton 
-          onClick={() => handleNavigate('/history')}
-          sx={{ borderRadius: 2, mb: 1 }}
-        >
-          <ListItemIcon sx={{ color: 'text.primary' }}>
-            <HistoryIcon />
-          </ListItemIcon>
+        <ListItemButton onClick={() => handleNavigate('/history')} sx={{ borderRadius: 2, mb: 1 }}>
+          <ListItemIcon sx={{ color: 'text.primary' }}><HistoryIcon /></ListItemIcon>
           <ListItemText primary="Mes courses" />
         </ListItemButton>
 
-        {/* 4. MON COMPTE */}
-        <ListItemButton 
-          onClick={() => handleNavigate('/account')}
-          sx={{ borderRadius: 2, mb: 1 }}
-        >
-          <ListItemIcon sx={{ color: 'text.primary' }}>
-            <PersonIcon />
-          </ListItemIcon>
+        <ListItemButton onClick={() => handleNavigate('/account')} sx={{ borderRadius: 2, mb: 1 }}>
+          <ListItemIcon sx={{ color: 'text.primary' }}><PersonIcon /></ListItemIcon>
           <ListItemText primary="Mon compte" />
         </ListItemButton>
       </List>
 
-      {/* DÉCONNEXION */}
       <Box sx={{ mt: 'auto', mb: 2 }}>
-        <Button 
-          fullWidth 
-          variant="outlined" 
-          color="error" 
-          startIcon={<ExitToAppIcon />}
-          onClick={handleLogout}
-          sx={{ borderRadius: 3, textTransform: 'none' }}
-        >
+        <Button fullWidth variant="outlined" color="error" startIcon={<ExitToAppIcon />} onClick={handleLogout} sx={{ borderRadius: 3, textTransform: 'none' }}>
           Se déconnecter
         </Button>
-        <Typography variant="caption" align="center" display="block" sx={{ mt: 2, color: 'text.secondary' }}>
-          Yély App v1.0.0
-        </Typography>
       </Box>
     </Box>
   );
 
   return (
     <Drawer
-      anchor="right"
-      open={open}
-      onClose={onClose}
+      anchor="right" open={open} onClose={onClose}
       PaperProps={{
         sx: {
           bgcolor: mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)', 
-          backdropFilter: 'blur(10px)',
-          boxShadow: '-10px 0 30px rgba(0,0,0,0.2)',
+          backdropFilter: 'blur(10px)', boxShadow: '-10px 0 30px rgba(0,0,0,0.2)',
         }
       }}
     >
