@@ -3,17 +3,30 @@ import { apiSlice } from '../api/apiSlice';
 
 export const ridesApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
+    // 1. Récupérer l'historique
     getRideHistory: builder.query({
       query: () => ({
         url: '/rides/history',
         method: 'GET',
       }),
-      // Tag 'Ride' permet de rafraîchir la liste automatiquement si on ajoute une course plus tard
       providesTags: ['Ride'],
-      // Garde les données en cache 5 secondes pour éviter de spammer le serveur
       keepUnusedDataFor: 5,
+    }),
+
+    // 2. Créer une course (NOUVEAU)
+    createRide: builder.mutation({
+      query: (rideData) => ({
+        url: '/rides',
+        method: 'POST',
+        body: rideData,
+      }),
+      // Invalider le cache 'Ride' pour que l'historique se mette à jour tout seul
+      invalidatesTags: ['Ride'],
     }),
   }),
 });
 
-export const { useGetRideHistoryQuery } = ridesApiSlice;
+export const { 
+  useGetRideHistoryQuery,
+  useCreateRideMutation // <--- On exporte le nouveau hook
+} = ridesApiSlice;
