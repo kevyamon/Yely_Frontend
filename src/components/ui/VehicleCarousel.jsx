@@ -1,5 +1,5 @@
 // src/components/ui/VehicleCarousel.jsx
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { Box } from '@mui/material';
 import VehicleCard from './VehicleCard';
 
@@ -12,43 +12,46 @@ const SERVICES = [
   {
     id: 'vip',
     title: 'VIP',
-    shortDesc: 'Seul à bord.', // <--- MODIFICATION ICI (Plus de clim)
-    icon: <DiamondIcon sx={{ fontSize: 32 }} />, 
+    type: 'VIP',
+    price: 5000,
+    shortDesc: 'Seul à bord.',
+    icon: <DiamondIcon />, 
     glow: 'rgba(255, 193, 7, 0.4)'
   },
   {
     id: 'premium',
     title: 'EXPRESS',
+    type: 'EXPRESS',
+    price: 2500,
     shortDesc: 'Prioritaire. Rapide.',
-    icon: <BoltIcon sx={{ fontSize: 32 }} />, 
+    icon: <BoltIcon />, 
     glow: 'rgba(0, 255, 255, 0.3)'
   },
   {
     id: 'classic',
     title: 'STANDARD',
+    type: 'STANDARD',
+    price: 1500,
     shortDesc: 'Partagé. Éco.',
-    icon: <PersonIcon sx={{ fontSize: 32 }} />, 
+    icon: <PersonIcon />, 
     glow: 'rgba(255, 255, 255, 0.2)'
   }
 ];
 
-const VehicleCarousel = () => {
-  const [selectedId, setSelectedId] = useState('classic');
+const VehicleCarousel = ({ onSelect, selectedId }) => {
   const containerRef = useRef(null);
 
-  const handleCardClick = (id, index) => {
-    setSelectedId(id);
+  const handleCardClick = (service, index) => {
+    onSelect(service); // On remonte l'objet complet au parent
     const container = containerRef.current;
     if (container) {
       const card = container.children[index];
-      // Centrage mathématique parfait
       const scrollPosition = card.offsetLeft - (container.clientWidth / 2) + (card.clientWidth / 2);
       container.scrollTo({ left: scrollPosition, behavior: 'smooth' });
     }
   };
 
   return (
-    // CONTENEUR "FULL BLEED"
     <Box sx={{ 
       width: '100vw', 
       position: 'relative',
@@ -62,9 +65,9 @@ const VehicleCarousel = () => {
         sx={{ 
           display: 'flex', 
           overflowX: 'auto', 
-          py: 2, 
+          py: 1, // RÉDUIT (Était 2)
           width: '100%',
-          px: 'calc(50vw - 72px)', // Centrage
+          px: 'calc(50vw - 65px)', 
           '&::-webkit-scrollbar': { display: 'none' }, 
           msOverflowStyle: 'none',
           scrollbarWidth: 'none',
@@ -76,7 +79,7 @@ const VehicleCarousel = () => {
             key={service.id}
             vehicle={service}
             isSelected={selectedId === service.id}
-            onClick={() => handleCardClick(service.id, index)}
+            onClick={() => handleCardClick(service, index)}
           />
         ))}
       </Box>
