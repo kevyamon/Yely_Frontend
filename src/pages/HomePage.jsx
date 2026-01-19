@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Box, Typography, IconButton, InputBase, Button, Badge, useTheme, 
-  CircularProgress, Paper, Stack 
+  CircularProgress, Paper 
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector, useDispatch } from 'react-redux';
@@ -33,15 +33,18 @@ const HomePage = () => {
   const theme = useTheme(); 
   const isDark = theme.palette.mode === 'dark';
   
-  // ÉTATS DE L'INTERFACE
+  // --- ÉTATS DU FLUX ---
+  const [isMapVisible, setIsMapVisible] = useState(false); // La carte est cachée au début
   const [drawerOpen, setDrawerOpen] = useState(false);
+  
   const [destination, setDestination] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [searchedLocation, setSearchedLocation] = useState(null);
-  const [isDrawerExpanded, setIsDrawerExpanded] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null); 
   
-  // GÉOLOCALISATION ET RECHERCHE
+  const searchInputRef = useRef(null);
+
+  // GÉOLOCALISATION
   const userLocation = useGeolocation();
   const debouncedDest = useDebounce(destination, 500);
   const isSelecting = useRef(false);
@@ -49,16 +52,9 @@ const HomePage = () => {
   // API
   const [createRide, { isLoading: isCreating }] = useCreateRideMutation();
   const { data: notifications = [] } = useGetNotificationsQuery(undefined, { skip: !user });
-  
-  const unreadCount = useMemo(() => 
-    Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0, 
-    [notifications]
-  );
+  const unreadCount = useMemo(() => Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0, [notifications]);
 
-  // TAILLES DYNAMIQUES
-  const DRAWER_MIN_HEIGHT = '220px'; 
-  const DRAWER_MAX_HEIGHT = '45vh';
-
+  // --- LOGIQUE DE RECHERCHE ---
   useEffect(() => {
     if (debouncedDest.length > 2 && !isSelecting.current) {
       searchPlaces(debouncedDest).then(setSuggestions);
@@ -68,12 +64,13 @@ const HomePage = () => {
     }
   }, [debouncedDest]);
 
+  // --- ACTIONS DU FLUX ---
   const handleSelectDestination = (place) => {
     isSelecting.current = true;
     setDestination(place.main_text);
     setSearchedLocation([place.lat, place.lon]);
     setSuggestions([]);
-    setIsDrawerExpanded(true); 
+    setIsMapVisible(true); // C'est ici que la carte apparaît !
   };
 
   const handleKeyDown = (e) => {
@@ -82,50 +79,46 @@ const HomePage = () => {
     }
   };
 
+  const handleCommanderClick = () => {
+    if (selectedCategory && searchInputRef.current) {
+      searchInputRef.current.focus();
+      dispatch(showToast({ message: 'Quelle est votre destination ?', type: 'info' }));
+    }
+  };
+
   const handleClearSearch = () => {
     setDestination('');
     setSuggestions([]);
     setSearchedLocation(null);
-    setIsDrawerExpanded(false);
+    setIsMapVisible(false); // Retour à l'atmosphère
     setSelectedCategory(null);
-  };
-
-  const handleConfirmOrder = async () => {
-    if (!searchedLocation || !selectedCategory) return;
-    try {
-      await createRide({
-        pickupLocation: { 
-          address: "Ma position", 
-          coordinates: [userLocation.coordinates.lng, userLocation.coordinates.lat] 
-        },
-        dropoffLocation: { 
-          address: destination, 
-          coordinates: [searchedLocation[1], searchedLocation[0]] 
-        },
-        paymentMethod: 'cash',
-        price: selectedCategory.price,
-        category: selectedCategory.type
-      }).unwrap();
-      
-      dispatch(showToast({ message: `Recherche d'un chauffeur ${selectedCategory.type}...`, type: 'info' }));
-      navigate('/history');
-    } catch (err) {
-      dispatch(showToast({ message: 'Erreur lors de la commande', type: 'error' }));
-    }
   };
 
   return (
     <Box sx={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', bgcolor: 'background.default', position: 'relative', overflow: 'hidden' }}>
+      
+      {/* 1. L'ATMOSPHÈRE (Fond animé quand la carte n'est pas là) */}
+      {!isMapVisible && (
+        <Box sx={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          background: isDark 
+            ? 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)' 
+            : 'linear-gradient(135deg, #f5f7fa, #c3cfe2)',
+          zIndex: 0
+        }} />
+      )}
+
       <AppDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
-      {/* HEADER */}
+      {/* HEADER (Modèle Respecté : Salut + Yély Visible) */}
       <Box sx={{ p: 2, pt: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100 }}>
         <Box>
           <Typography variant="h4" fontWeight="900">
             <span style={{ color: '#FFC107' }}>Y</span>
+            {/* CORRECTION COULEUR : S'adapte au thème pour être toujours visible */}
             <span style={{ color: isDark ? 'white' : 'black' }}>ély</span>
           </Typography>
-          <Typography variant="body2" fontWeight="bold" color="text.secondary">
+          <Typography variant="body2" fontWeight="bold" sx={{ color: isDark ? 'rgba(255,255,255,0.8)' : 'text.secondary' }}>
             Salut, {user?.name?.split(' ')[0] || 'Voyageur'} 👋
           </Typography>
         </Box>
@@ -134,12 +127,13 @@ const HomePage = () => {
         </IconButton>
       </Box>
 
-      {/* BARRE DE RECHERCHE */}
-      <Box sx={{ px: 2, mb: 1, zIndex: 100 }}>
+      {/* BARRE DE RECHERCHE (Modèle Respecté : "On va où ?") */}
+      <Box sx={{ px: 2, mb: 1, zIndex: 100, mt: isMapVisible ? 0 : 4 }}>
         <Paper sx={{ display: 'flex', alignItems: 'center', p: 0.8, px: 2, borderRadius: '16px', boxShadow: 4 }}>
           <SearchIcon sx={{ color: '#FFC107', mr: 1 }} />
           <InputBase
-            placeholder="On va où ?"
+            inputRef={searchInputRef}
+            placeholder="On va où ?" 
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -149,6 +143,7 @@ const HomePage = () => {
           {destination && <IconButton size="small" onClick={handleClearSearch}><CloseIcon /></IconButton>}
         </Paper>
         
+        {/* Suggestions */}
         <AnimatePresence>
           {suggestions.length > 0 && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ position: 'absolute', left: 16, right: 16, zIndex: 110 }}>
@@ -165,82 +160,79 @@ const HomePage = () => {
         </AnimatePresence>
       </Box>
 
-      {/* CARTE */}
-      <Box sx={{ 
-        flexGrow: 1, 
-        width: '100%',
-        position: 'relative',
-        zIndex: 10,
-        pb: isDrawerExpanded ? DRAWER_MAX_HEIGHT : DRAWER_MIN_HEIGHT,
-        transition: 'padding-bottom 0.5s ease'
-      }}>
-        <Box sx={{ height: '100%', width: '100%', p: 1 }}>
-          <Paper sx={{ height: '100%', width: '100%', borderRadius: '24px', overflow: 'hidden', border: '3px solid white' }}>
+      {/* ZONE CENTRALE : CARTE */}
+      <Box sx={{ flexGrow: 1, position: 'relative', zIndex: 10 }}>
+        {isMapVisible && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            style={{ height: '100%', width: '100%', borderRadius: '24px 24px 0 0', overflow: 'hidden' }}
+          >
             <LeafletMap 
               userLocation={userLocation}
               searchedLocation={searchedLocation} 
               nearbyTaxis={[]} 
             />
-          </Paper>
-        </Box>
+          </motion.div>
+        )}
       </Box>
 
-      {/* TIROIR */}
-      <motion.div 
-        animate={{ height: isDrawerExpanded ? DRAWER_MAX_HEIGHT : DRAWER_MIN_HEIGHT }}
-        transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-        style={{ 
-          position: 'absolute', bottom: 0, left: 0, right: 0, 
-          background: isDark ? 'rgba(18,18,18,0.98)' : 'rgba(255,255,255,0.98)',
-          backdropFilter: 'blur(20px)',
-          borderTopLeftRadius: '30px', borderTopRightRadius: '30px',
-          boxShadow: '0 -8px 30px rgba(0,0,0,0.12)', 
-          zIndex: 150,
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
-        <Box sx={{ width: 40, height: 4, bgcolor: 'grey.300', borderRadius: 10, mx: 'auto', mb: 2 }} />
+      {/* TIROIR DE FORFAITS */}
+      <Box sx={{ 
+        position: 'absolute', bottom: 0, left: 0, right: 0, 
+        background: isDark ? 'rgba(18,18,18,0.95)' : 'rgba(255,255,255,0.95)',
+        backdropFilter: 'blur(20px)',
+        borderTopLeftRadius: '30px', borderTopRightRadius: '30px',
+        boxShadow: '0 -8px 30px rgba(0,0,0,0.15)', 
+        zIndex: 150,
+        padding: isMapVisible ? '10px 0 20px 0' : '20px 0',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
         
-        <Typography variant="subtitle1" fontWeight="900" sx={{ mb: 1, ml: 1 }}>
-          {isDrawerExpanded ? 'Sélectionnez un forfait' : 'Taxis à proximité'}
-        </Typography>
+        {!isMapVisible && (
+          <Typography variant="subtitle1" fontWeight="900" sx={{ mb: 1, ml: 3, opacity: 0.8 }}>
+            {selectedCategory ? 'Forfait sélectionné' : 'Choisissez votre confort'}
+          </Typography>
+        )}
 
-        {/* Carousel */}
-        <Box sx={{ width: '100%', overflow: 'hidden', mb: isDrawerExpanded ? 1 : 0 }}>
+        <Box sx={{ mb: isMapVisible ? 1 : 2 }}>
           <VehicleCarousel 
             onSelect={(service) => setSelectedCategory(service)} 
             selectedId={selectedCategory?.id} 
           />
         </Box>
 
-        {/* BOUTON CORRIGÉ : Plus petit et police réduite */}
-        <AnimatePresence>
-          {selectedCategory && isDrawerExpanded && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
-              <Button 
-                fullWidth 
-                variant="contained" 
-                onClick={handleConfirmOrder}
-                disabled={isCreating}
-                sx={{ 
-                  bgcolor: '#FFC107', 
-                  color: 'black', 
-                  borderRadius: '14px',    // Rayon réduit
-                  py: 1.2,                 // Hauteur réduite (1.8 -> 1.2)
-                  fontWeight: '900',
-                  fontSize: '0.85rem',     // Police réduite (1rem -> 0.85rem)
-                  mt: 0.5,
-                  '&:hover': { bgcolor: '#FFD54F' }
-                }}
-              >
-                {isCreating ? <CircularProgress size={20} color="inherit" /> : `COMMANDER YÉLY ${selectedCategory.type}`}
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+        {/* BOUTONS D'ACTION */}
+        <Box sx={{ px: 2 }}>
+          <AnimatePresence>
+            {/* Cas 1: Juste sélectionné */}
+            {selectedCategory && !isMapVisible && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                <Button 
+                  fullWidth variant="contained" onClick={handleCommanderClick}
+                  sx={{ bgcolor: '#FFC107', color: 'black', borderRadius: '16px', py: 1.5, fontWeight: '900', fontSize: '1rem' }}
+                >
+                  COMMANDER YÉLY {selectedCategory.type}
+                </Button>
+              </motion.div>
+            )}
+
+            {/* Cas 2: Carte active (Confirmation) */}
+            {isMapVisible && searchedLocation && selectedCategory && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <Button 
+                  fullWidth variant="contained" 
+                  onClick={() => navigate('/history')}
+                  sx={{ bgcolor: '#4CAF50', color: 'white', borderRadius: '16px', py: 1.5, fontWeight: '900', fontSize: '1rem', '&:hover': { bgcolor: '#45a049' } }}
+                >
+                  CONFIRMER LA COURSE ({selectedCategory.price} F)
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Box>
+      </Box>
     </Box>
   );
 };
