@@ -1,18 +1,20 @@
-// src/services/socketService.js
 import { io } from 'socket.io-client';
 
-// Utilise l'URL définie dans .env si elle existe, sinon localhost
+// URL du backend (Local ou Production)
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 class SocketService {
   socket = null;
+  pendingListeners = []; // 🧠 La liste d'attente (Mémoire tampon)
 
   connect(token) {
     if (this.socket) return;
 
+    console.log("🔌 Initialisation du Socket...");
+    
     this.socket = io(SOCKET_URL, {
-      auth: { token }, // On passe le token pour l'authentification
-      transports: ['websocket'], // Performance maximale
+      auth: { token },
+      transports: ['websocket'],
       reconnection: true,
     });
 
@@ -27,6 +29,15 @@ class SocketService {
     this.socket.on('connect_error', (err) => {
       console.error('❌ Erreur connexion socket:', err.message);
     });
+
+    // 🚀 ON APPLIQUE LES ÉCOUTEURS EN ATTENTE
+    if (this.pendingListeners.length > 0) {
+        console.log(`📥 Application de ${this.pendingListeners.length} écouteurs en attente...`);
+        this.pendingListeners.forEach(({ eventName, callback }) => {
+            this.socket.on(eventName, callback);
+        });
+        this.pendingListeners = []; // On vide la liste
+    }
   }
 
   disconnect() {
@@ -36,24 +47,34 @@ class SocketService {
     }
   }
 
-  // Pour écouter un événement (ex: 'newRideAvailable')
+  // --- ÉCOUTER (BLINDÉ) ---
   on(eventName, callback) {
     if (this.socket) {
+      // Cas 1 : Déjà connecté, on branche direct
       this.socket.on(eventName, callback);
+    } else {
+      // Cas 2 : Pas encore connecté (Race Condition), on met en liste d'attente
+      console.log(`⏳ Mise en attente de l'écouteur : ${eventName}`);
+      this.pendingListeners.push({ eventName, callback });
     }
   }
 
-  // Pour arrêter d'écouter
-  off(eventName) {
+  // --- ARRÊTER D'ÉCOUTER ---
+  off(eventName, callback) {
     if (this.socket) {
-      this.socket.off(eventName);
+      this.socket.off(eventName, callback);
+    } else {
+      // On retire aussi de la liste d'attente si ça n'a pas encore été branché
+      this.pendingListeners = this.pendingListeners.filter(l => l.eventName !== eventName);
     }
   }
 
-  // Pour envoyer une action (ex: 'joinZone')
+  // --- PARLER ---
   emit(eventName, data) {
     if (this.socket) {
       this.socket.emit(eventName, data);
+    } else {
+        console.warn(`⚠️ Tentative d'emit '${eventName}' sans connexion socket.`);
     }
   }
 }
