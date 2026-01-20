@@ -1,3 +1,4 @@
+// src/pages/HomePage.jsx
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Box, Typography, IconButton, InputBase, Button, Badge, useTheme, 
@@ -35,7 +36,7 @@ import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 // 🚖 INTERFACE CHAUFFEUR (DASHBOARD)
 // ==================================================================================
 const DriverDashboard = ({ user, userLocation }) => {
-  // 🟢 CORRECTION 1 : Par défaut à TRUE (En ligne)
+  // ✅ DEMANDE CLIENT RESPECTÉE : Par défaut "En Ligne" (true)
   const [isOnline, setIsOnline] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeRideId, setActiveRideId] = useState(null);
@@ -45,28 +46,29 @@ const DriverDashboard = ({ user, userLocation }) => {
   const { data: notifications = [] } = useGetNotificationsQuery(undefined, { skip: !user });
   const unreadCount = useMemo(() => Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0, [notifications]);
 
-  // --- 1. ÉCOUTE DU DÉPART DE COURSE ---
+  // --- 1. ÉCOUTE DE LA COURSE (Réception) ---
   useEffect(() => {
     const handleRideStart = (ride) => {
-      // 🟢 NETTOYAGE : On garde juste l'essentiel, fini le spam console
       setActiveRideId(ride._id);
       setIsOnline(true);
     };
-    
     socketService.on('rideAccepted', handleRideStart);
-    
     return () => {
       socketService.off('rideAccepted', handleRideStart);
     };
   }, []);
 
-  // --- 2. SYNCHRONISATION POSITION & STATUT ---
+  // --- 2. SYNCHRONISATION POSITION & STATUT (Émission) ---
   useEffect(() => {
+    // 🛑 SÉCURITÉ : Si on est en ligne mais que le GPS n'est pas prêt, on attend.
+    // On évite ainsi d'envoyer des commandes "leaveZone" parasites.
+    if (isOnline && !userLocation.coordinates.lat) return;
+
     let interval;
     if (isOnline && userLocation.coordinates.lat) {
       
       const sendPos = () => {
-        // Envoi silencieux (plus de console.log)
+        // Envoi silencieux (plus de console.log qui spam)
         socketService.emit('updateLocation', {
           userId: user._id, 
           role: 'driver',
@@ -77,10 +79,14 @@ const DriverDashboard = ({ user, userLocation }) => {
 
       socketService.emit('joinZone', 'drivers'); 
       sendPos();
-      interval = setInterval(sendPos, 5000); // Mise à jour toutes les 5s
+      interval = setInterval(sendPos, 5000);
 
     } else {
-      socketService.emit('leaveZone', 'drivers'); 
+      // On quitte la zone SEULEMENT si l'utilisateur a explicitement désactivé (isOnline = false)
+      // et que le GPS était déjà chargé (pour éviter le faux positif au démarrage)
+      if (userLocation.loaded) {
+        socketService.emit('leaveZone', 'drivers'); 
+      }
     }
     return () => clearInterval(interval);
   }, [isOnline, userLocation, user, activeRideId]);
@@ -140,7 +146,7 @@ const DriverDashboard = ({ user, userLocation }) => {
 };
 
 // ==================================================================================
-// 👤 INTERFACE PASSAGER
+// 👤 INTERFACE PASSAGER (Standard)
 // ==================================================================================
 const HomePage = () => {
   const dispatch = useDispatch();
@@ -183,19 +189,15 @@ const HomePage = () => {
 
   // --- 👂 ORCHESTRATION SOCKET PASSAGER ---
   useEffect(() => {
-    // 1. Chauffeur Trouvé !
     const handleRideAccepted = (ride) => {
-      // 🟢 NETTOYAGE CONSOLE
       setIsWaitingForDriver(false);
       setActiveRide(ride);
       socketService.emit('joinRide', ride._id);
       dispatch(showToast({ message: 'Chauffeur en route ! 🚗', type: 'success' }));
     };
 
-    // 2. Tracking Position Chauffeur
     const handleLocationUpdate = (coords) => {
-      // 🟢 Log conservé pour le debug mais discret, on pourra l'enlever plus tard
-      // console.log("📡", coords); 
+      // Tracking silencieux pour l'instant
     };
 
     socketService.on('rideAccepted', handleRideAccepted);
@@ -278,7 +280,6 @@ const HomePage = () => {
         <IconButton onClick={() => setDrawerOpen(true)} sx={{ bgcolor: 'background.paper', boxShadow: 3, borderRadius: '12px' }}><Badge color="error" variant="dot" invisible={unreadCount === 0}><MenuIcon /></Badge></IconButton>
       </Box>
 
-      {/* BARRE DE RECHERCHE */}
       {!activeRide && (
         <Box sx={{ px: 2, mb: 1, zIndex: 100, mt: isMapVisible ? 0 : 4 }}>
           <Paper sx={{ display: 'flex', alignItems: 'center', p: 0.8, px: 2, borderRadius: '16px', boxShadow: 4 }}>
@@ -303,7 +304,6 @@ const HomePage = () => {
         </Box>
       )}
 
-      {/* CARTE */}
       <Box sx={{ flexGrow: 1, position: 'relative', zIndex: 10 }}>
         {isMapVisible && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ height: '100%', width: '100%', borderRadius: '24px 24px 0 0', overflow: 'hidden' }}>
@@ -312,7 +312,6 @@ const HomePage = () => {
         )}
       </Box>
 
-      {/* TIROIR BAS */}
       <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 150 }}>
         <AnimatePresence mode="wait">
           {activeRide ? (

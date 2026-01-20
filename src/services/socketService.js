@@ -1,42 +1,35 @@
+// src/services/socketService.js
 import { io } from 'socket.io-client';
 
-// URL du backend (Local ou Production)
+// 🟢 RETOUR AU STANDARD : On utilise la variable d'environnement .env
+// Si pas de .env, on suppose localhost. C'est la bonne façon de faire.
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 class SocketService {
   socket = null;
-  pendingListeners = []; // 🧠 La liste d'attente (Mémoire tampon)
+  pendingListeners = [];
 
   connect(token) {
     if (this.socket) return;
 
-    console.log("🔌 Initialisation du Socket...");
-    
     this.socket = io(SOCKET_URL, {
       auth: { token },
       transports: ['websocket'],
       reconnection: true,
     });
 
-    this.socket.on('connect', () => {
-      console.log('⚡ Connecté au réseau Yély');
-    });
-
-    this.socket.on('disconnect', () => {
-      console.log('🔌 Déconnecté du réseau Yély');
-    });
-
+    // 🔇 SILENCE RADIO : On ne logue que les vraies erreurs critiques
     this.socket.on('connect_error', (err) => {
-      console.error('❌ Erreur connexion socket:', err.message);
+      // Cette erreur s'affichera si ton serveur local est éteint ou si l'URL est mauvaise
+      console.error('❌ Erreur Socket :', err.message);
     });
 
-    // 🚀 ON APPLIQUE LES ÉCOUTEURS EN ATTENTE
+    // Application silencieuse des écouteurs qui attendaient
     if (this.pendingListeners.length > 0) {
-        console.log(`📥 Application de ${this.pendingListeners.length} écouteurs en attente...`);
         this.pendingListeners.forEach(({ eventName, callback }) => {
             this.socket.on(eventName, callback);
         });
-        this.pendingListeners = []; // On vide la liste
+        this.pendingListeners = [];
     }
   }
 
@@ -47,35 +40,28 @@ class SocketService {
     }
   }
 
-  // --- ÉCOUTER (BLINDÉ) ---
   on(eventName, callback) {
     if (this.socket) {
-      // Cas 1 : Déjà connecté, on branche direct
       this.socket.on(eventName, callback);
     } else {
-      // Cas 2 : Pas encore connecté (Race Condition), on met en liste d'attente
-      console.log(`⏳ Mise en attente de l'écouteur : ${eventName}`);
+      // On met en attente discrètement
       this.pendingListeners.push({ eventName, callback });
     }
   }
 
-  // --- ARRÊTER D'ÉCOUTER ---
   off(eventName, callback) {
     if (this.socket) {
       this.socket.off(eventName, callback);
     } else {
-      // On retire aussi de la liste d'attente si ça n'a pas encore été branché
       this.pendingListeners = this.pendingListeners.filter(l => l.eventName !== eventName);
     }
   }
 
-  // --- PARLER ---
   emit(eventName, data) {
-    if (this.socket) {
+    if (this.socket && this.socket.connected) {
       this.socket.emit(eventName, data);
-    } else {
-        console.warn(`⚠️ Tentative d'emit '${eventName}' sans connexion socket.`);
     }
+    // Si pas connecté, on ignore silencieusement pour ne pas spammer la console
   }
 }
 
