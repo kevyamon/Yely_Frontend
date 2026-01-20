@@ -1,9 +1,8 @@
-// src/features/rides/ridesApiSlice.js
 import { apiSlice } from '../api/apiSlice';
 
 export const ridesApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // 1. Récupérer l'historique
+    // 1. Récupérer l'historique (Ton code existant)
     getRideHistory: builder.query({
       query: () => ({
         url: '/rides/history',
@@ -13,14 +12,23 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       keepUnusedDataFor: 5,
     }),
 
-    // 2. Créer une course (NOUVEAU)
+    // 2. Créer une course (Ton code existant)
     createRide: builder.mutation({
       query: (rideData) => ({
         url: '/rides',
         method: 'POST',
         body: rideData,
       }),
-      // Invalider le cache 'Ride' pour que l'historique se mette à jour tout seul
+      invalidatesTags: ['Ride'],
+    }),
+
+    // 3. Accepter une course (NOUVEAU - AJOUTÉ)
+    acceptRide: builder.mutation({
+      query: (rideId) => ({
+        url: `/rides/${rideId}/accept`,
+        method: 'PUT',
+      }),
+      // Invalider 'Ride' permet de rafraîchir l'historique automatiquement après avoir accepté
       invalidatesTags: ['Ride'],
     }),
   }),
@@ -28,5 +36,6 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
 
 export const { 
   useGetRideHistoryQuery,
-  useCreateRideMutation // <--- On exporte le nouveau hook
+  useCreateRideMutation,
+  useAcceptRideMutation // <--- Export du nouveau hook
 } = ridesApiSlice;
