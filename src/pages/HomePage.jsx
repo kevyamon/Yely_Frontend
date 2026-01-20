@@ -1,3 +1,4 @@
+// src/pages/HomePage.jsx
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Box, Typography, IconButton, InputBase, Button, Badge, useTheme, 
@@ -73,7 +74,7 @@ const DriverDashboard = ({ user, userLocation }) => {
 
   // --- B. TRACKING GPS (SILENCIEUX) ---
   useEffect(() => {
-    // Si GPS pas prêt, on attend
+    // Si GPS pas prêt, on attend (pas d'erreur rouge)
     if (isOnline && !userLocation.coordinates.lat) return;
 
     let interval;
@@ -227,10 +228,11 @@ const HomePage = () => {
     }
   }, [debouncedDest]);
 
-  // --- 👂 ORCHESTRATION SOCKET PASSAGER ---
+  // --- 👂 ORCHESTRATION SOCKET PASSAGER (LA CLÉ DU TEMPS RÉEL) ---
   useEffect(() => {
     // 1. CHAUFFEUR A ACCEPTÉ (Déclenche le mode suivi)
     const handleRideAccepted = (ride) => {
+      console.log("✅ ACCEPTÉ :", ride);
       setIsWaitingForDriver(false);
       setActiveRide(ride);
       socketService.emit('joinRide', ride._id);
@@ -239,12 +241,14 @@ const HomePage = () => {
 
     // 2. CHAUFFEUR A DÉMARRÉ (Mise à jour texte "En route")
     const handleRideStarted = (updatedRide) => {
+      console.log("🚀 DÉMARRÉ :", updatedRide);
       setActiveRide(updatedRide); // Ceci met à jour DriverInfoCard
       dispatch(showToast({ message: 'Course démarrée ! Bonne route', type: 'info' }));
     };
 
     // 3. CHAUFFEUR A TERMINÉ (Mise à jour texte "Terminé")
     const handleRideCompleted = (completedRide) => {
+      console.log("🏁 TERMINÉ :", completedRide);
       setActiveRide(completedRide); // Affiche "Vous êtes arrivé"
       
       // Petit délai avant de réinitialiser l'écran
@@ -264,15 +268,15 @@ const HomePage = () => {
 
     // ABONNEMENTS
     socketService.on('rideAccepted', handleRideAccepted);
-    socketService.on('rideStarted', handleRideStarted);
-    socketService.on('rideCompleted', handleRideCompleted);
+    socketService.on('rideStarted', handleRideStarted);     // ✅ AJOUTÉ
+    socketService.on('rideCompleted', handleRideCompleted); // ✅ AJOUTÉ
     socketService.on('driverLocationUpdate', handleLocationUpdate);
 
     // NETTOYAGE
     return () => {
       socketService.off('rideAccepted', handleRideAccepted);
-      socketService.off('rideStarted', handleRideStarted);
-      socketService.off('rideCompleted', handleRideCompleted);
+      socketService.off('rideStarted', handleRideStarted);     // ✅ RETIRÉ
+      socketService.off('rideCompleted', handleRideCompleted); // ✅ RETIRÉ
       socketService.off('driverLocationUpdate', handleLocationUpdate);
     };
   }, [dispatch]);
@@ -382,7 +386,7 @@ const HomePage = () => {
         )}
       </Box>
 
-      {/* TIROIR BAS */}
+      {/* TIROIR BAS : CHOIX VÉHICULE OU INFO CHAUFFEUR */}
       <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 150 }}>
         <AnimatePresence mode="wait">
           {activeRide ? (
