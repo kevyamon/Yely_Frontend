@@ -1,3 +1,4 @@
+// src/App.jsx
 import { useEffect, useState, useMemo } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
@@ -40,7 +41,7 @@ function App() {
       socketService.on('newRideAvailable', (rideData) => {
         // Gardien de sécurité (Double vérification)
         if (user.role === 'driver') {
-           console.log("🔔 ALERTE CHAUFFEUR REÇUE :", rideData);
+           // Console log supprimé ici pour le silence
            setIncomingRide(rideData); 
         }
       });
