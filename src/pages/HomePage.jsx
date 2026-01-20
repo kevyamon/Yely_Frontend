@@ -13,7 +13,11 @@ import useGeolocation from '../hooks/useGeolocation';
 import { searchPlaces } from '../services/mapService';
 import useDebounce from '../hooks/useDebounce';
 import { useGetNotificationsQuery } from '../features/notifications/notificationsApiSlice';
-import { useCreateRideMutation } from '../features/rides/ridesApiSlice';
+import { 
+  useCreateRideMutation, 
+  useStartRideMutation, 
+  useCompleteRideMutation 
+} from '../features/rides/ridesApiSlice';
 import { showToast } from '../features/common/uiSlice';
 import socketService from '../services/socketService';
 
@@ -33,42 +37,50 @@ import HistoryIcon from '@mui/icons-material/History';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 
 // ==================================================================================
-// 🚖 INTERFACE CHAUFFEUR (DASHBOARD)
+// 🚖 INTERFACE CHAUFFEUR (DASHBOARD) - MODE MISSION
 // ==================================================================================
 const DriverDashboard = ({ user, userLocation }) => {
-  // ✅ DEMANDE CLIENT RESPECTÉE : Par défaut "En Ligne" (true)
+  // 1. ÉTATS : En ligne par défaut
   const [isOnline, setIsOnline] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  
+  // 2. ÉTAT DE LA COURSE (Machine à états)
+  // 0 = Rien, 1 = Approche (Accepté), 2 = En route (Client à bord)
+  const [rideStatus, setRideStatus] = useState(0); 
   const [activeRideId, setActiveRideId] = useState(null);
   
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+  const dispatch = useDispatch();
+
+  // 3. API ACTIONS (Télécommande)
+  const [startRide] = useStartRideMutation();
+  const [completeRide] = useCompleteRideMutation();
+  
   const { data: notifications = [] } = useGetNotificationsQuery(undefined, { skip: !user });
   const unreadCount = useMemo(() => Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0, [notifications]);
 
-  // --- 1. ÉCOUTE DE LA COURSE (Réception) ---
+  // --- A. ÉCOUTE SOCKET (DÉBUT DE MISSION) ---
   useEffect(() => {
     const handleRideStart = (ride) => {
+      // Le backend nous dit "C'est validé". On passe en mode "Approche" (État 1)
       setActiveRideId(ride._id);
+      setRideStatus(1); 
       setIsOnline(true);
     };
     socketService.on('rideAccepted', handleRideStart);
-    return () => {
-      socketService.off('rideAccepted', handleRideStart);
-    };
+    return () => socketService.off('rideAccepted', handleRideStart);
   }, []);
 
-  // --- 2. SYNCHRONISATION POSITION & STATUT (Émission) ---
+  // --- B. TRACKING GPS (SILENCIEUX) ---
   useEffect(() => {
-    // 🛑 SÉCURITÉ : Si on est en ligne mais que le GPS n'est pas prêt, on attend.
-    // On évite ainsi d'envoyer des commandes "leaveZone" parasites.
+    // Si GPS pas prêt, on attend (pas d'erreur rouge)
     if (isOnline && !userLocation.coordinates.lat) return;
 
     let interval;
     if (isOnline && userLocation.coordinates.lat) {
-      
       const sendPos = () => {
-        // Envoi silencieux (plus de console.log qui spam)
+        // On envoie 'coordinates'
         socketService.emit('updateLocation', {
           userId: user._id, 
           role: 'driver',
@@ -79,17 +91,37 @@ const DriverDashboard = ({ user, userLocation }) => {
 
       socketService.emit('joinZone', 'drivers'); 
       sendPos();
-      interval = setInterval(sendPos, 5000);
-
+      interval = setInterval(sendPos, 5000); // 5 secondes
     } else {
-      // On quitte la zone SEULEMENT si l'utilisateur a explicitement désactivé (isOnline = false)
-      // et que le GPS était déjà chargé (pour éviter le faux positif au démarrage)
-      if (userLocation.loaded) {
-        socketService.emit('leaveZone', 'drivers'); 
-      }
+      // On quitte seulement si le GPS était déjà chargé
+      if (userLocation.loaded) socketService.emit('leaveZone', 'drivers'); 
     }
     return () => clearInterval(interval);
   }, [isOnline, userLocation, user, activeRideId]);
+
+  // --- C. LOGIQUE DES BOUTONS D'ACTION ---
+  const handleNextStep = async () => {
+    if (!activeRideId) return;
+
+    try {
+      if (rideStatus === 1) {
+        // ÉTAPE 1 -> 2 : CLIENT À BORD
+        await startRide(activeRideId).unwrap();
+        setRideStatus(2); 
+        dispatch(showToast({ message: 'Course démarrée ! Bonne route 🏁', type: 'success' }));
+      } 
+      else if (rideStatus === 2) {
+        // ÉTAPE 2 -> FIN : TERMINER
+        await completeRide(activeRideId).unwrap();
+        setRideStatus(0); // Retour au repos
+        setActiveRideId(null);
+        dispatch(showToast({ message: 'Course terminée ! Encaissement... 💰', type: 'success' }));
+      }
+    } catch (error) {
+      console.error("Erreur action course:", error);
+      dispatch(showToast({ message: 'Erreur technique', type: 'error' }));
+    }
+  };
 
   const toggleOnline = () => setIsOnline(!isOnline);
 
@@ -108,45 +140,54 @@ const DriverDashboard = ({ user, userLocation }) => {
         </IconButton>
       </Box>
 
-      {/* BARRE STATUT */}
-      <Box sx={{ px: 2, py: 1.5, bgcolor: 'background.paper', boxShadow: 3, zIndex: 99 }}>
-        <Card sx={{ bgcolor: isOnline ? 'rgba(76, 175, 80, 0.1)' : 'rgba(244, 67, 54, 0.1)', border: '1px solid', borderColor: isOnline ? 'success.main' : 'error.main', borderRadius: '16px', boxShadow: 'none' }}>
-          <CardContent sx={{ p: '12px !important', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box display="flex" alignItems="center">
-                <PowerSettingsNewIcon sx={{ color: isOnline ? 'success.main' : 'error.main', mr: 1 }} />
-                <Box>
+      {/* 🛑 PANNEAU D'ACTION (MODE MISSION) */}
+      {activeRideId ? (
+        <Box sx={{ p: 2, bgcolor: isDark ? '#1a1a1a' : '#fff3e0', borderBottom: '2px solid #FFC107', zIndex: 101 }}>
+          <Typography variant="subtitle2" fontWeight="bold" align="center" sx={{ mb: 1, color: '#FFC107' }}>
+            {rideStatus === 1 ? "📍 EN ROUTE VERS CLIENT" : "🚀 EN DIRECTION DE DESTINATION"}
+          </Typography>
+          
+          <Button 
+            fullWidth 
+            variant="contained" 
+            size="large"
+            onClick={handleNextStep}
+            sx={{ 
+              bgcolor: rideStatus === 1 ? '#2196F3' : '#4CAF50', // Bleu (Départ) -> Vert (Fin)
+              color: 'white', py: 2, fontSize: '1.1rem', fontWeight: '900',
+              borderRadius: '16px',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+              '&:hover': { bgcolor: rideStatus === 1 ? '#1976D2' : '#43A047' }
+            }}
+          >
+            {rideStatus === 1 ? 'CLIENT À BORD (DÉMARRER)' : 'TERMINER LA COURSE'}
+          </Button>
+        </Box>
+      ) : (
+        /* BARRE STATUT STANDARD (MODE ATTENTE) */
+        <Box sx={{ px: 2, py: 1.5, bgcolor: 'background.paper', boxShadow: 3, zIndex: 99 }}>
+          <Card sx={{ bgcolor: isOnline ? 'rgba(76, 175, 80, 0.1)' : 'rgba(244, 67, 54, 0.1)', border: '1px solid', borderColor: isOnline ? 'success.main' : 'error.main', borderRadius: '16px', boxShadow: 'none' }}>
+            <CardContent sx={{ p: '12px !important', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box display="flex" alignItems="center">
+                  <PowerSettingsNewIcon sx={{ color: isOnline ? 'success.main' : 'error.main', mr: 1 }} />
                   <Typography variant="subtitle2" fontWeight="bold" color={isOnline ? 'success.main' : 'error.main'}>{isOnline ? 'EN LIGNE' : 'HORS LIGNE'}</Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.8, fontWeight: activeRideId ? 'bold' : 'normal', color: activeRideId ? '#FFC107' : 'inherit' }}>
-                    {activeRideId ? '⚠️ Course en cours (Tracking)' : (isOnline ? 'Prêt à recevoir' : 'Repos')}
-                  </Typography>
                 </Box>
-              </Box>
-              <Switch checked={isOnline} onChange={toggleOnline} color="success" />
-          </CardContent>
-        </Card>
-      </Box>
+                <Switch checked={isOnline} onChange={toggleOnline} color="success" />
+            </CardContent>
+          </Card>
+        </Box>
+      )}
 
       {/* MAP */}
       <Box sx={{ flexGrow: 1, position: 'relative' }}>
         <LeafletMap userLocation={userLocation} searchedLocation={null} nearbyTaxis={[]} />
-        {!activeRideId && (
-          <Box sx={{ position: 'absolute', bottom: 20, left: 10, right: 10, zIndex: 999 }}>
-            <Card sx={{ borderRadius: '20px', bgcolor: 'rgba(0,0,0,0.85)', color: 'white', backdropFilter: 'blur(10px)' }}>
-              <CardContent sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', py: '16px !important' }}>
-                <Box textAlign="center"><AttachMoneyIcon sx={{ color: '#FFC107' }} /><Typography variant="h6" fontWeight="bold">0 F</Typography><Typography variant="caption" sx={{ opacity: 0.7 }}>Gains</Typography></Box>
-                <Box sx={{ width: 1, height: 40, bgcolor: 'rgba(255,255,255,0.2)' }} />
-                <Box textAlign="center"><HistoryIcon sx={{ color: '#4CAF50' }} /><Typography variant="h6" fontWeight="bold">0</Typography><Typography variant="caption" sx={{ opacity: 0.7 }}>Courses</Typography></Box>
-              </CardContent>
-            </Card>
-          </Box>
-        )}
       </Box>
     </Box>
   );
 };
 
 // ==================================================================================
-// 👤 INTERFACE PASSAGER (Standard)
+// 👤 INTERFACE PASSAGER (CLIENT)
 // ==================================================================================
 const HomePage = () => {
   const dispatch = useDispatch();
@@ -187,24 +228,55 @@ const HomePage = () => {
     }
   }, [debouncedDest]);
 
-  // --- 👂 ORCHESTRATION SOCKET PASSAGER ---
+  // --- 👂 ORCHESTRATION SOCKET PASSAGER (LA CLÉ DU TEMPS RÉEL) ---
   useEffect(() => {
+    // 1. CHAUFFEUR A ACCEPTÉ (Déclenche le mode suivi)
     const handleRideAccepted = (ride) => {
+      console.log("✅ ACCEPTÉ :", ride);
       setIsWaitingForDriver(false);
       setActiveRide(ride);
       socketService.emit('joinRide', ride._id);
       dispatch(showToast({ message: 'Chauffeur en route ! 🚗', type: 'success' }));
     };
 
-    const handleLocationUpdate = (coords) => {
-      // Tracking silencieux pour l'instant
+    // 2. CHAUFFEUR A DÉMARRÉ (Mise à jour texte "En route")
+    const handleRideStarted = (updatedRide) => {
+      console.log("🚀 DÉMARRÉ :", updatedRide);
+      setActiveRide(updatedRide); // Ceci met à jour DriverInfoCard
+      dispatch(showToast({ message: 'Course démarrée ! Bonne route', type: 'info' }));
     };
 
+    // 3. CHAUFFEUR A TERMINÉ (Mise à jour texte "Terminé")
+    const handleRideCompleted = (completedRide) => {
+      console.log("🏁 TERMINÉ :", completedRide);
+      setActiveRide(completedRide); // Affiche "Vous êtes arrivé"
+      
+      // Petit délai avant de réinitialiser l'écran
+      setTimeout(() => {
+        setActiveRide(null); 
+        setDestination('');
+        setSearchedLocation(null);
+        setIsMapVisible(false);
+        dispatch(showToast({ message: 'Vous êtes arrivé ! Merci ❤️', type: 'success' }));
+      }, 4000);
+    };
+
+    // 4. Tracking Position
+    const handleLocationUpdate = (coords) => {
+      // Connecté plus tard
+    };
+
+    // ABONNEMENTS
     socketService.on('rideAccepted', handleRideAccepted);
+    socketService.on('rideStarted', handleRideStarted);     // ✅ AJOUTÉ
+    socketService.on('rideCompleted', handleRideCompleted); // ✅ AJOUTÉ
     socketService.on('driverLocationUpdate', handleLocationUpdate);
 
+    // NETTOYAGE
     return () => {
       socketService.off('rideAccepted', handleRideAccepted);
+      socketService.off('rideStarted', handleRideStarted);     // ✅ RETIRÉ
+      socketService.off('rideCompleted', handleRideCompleted); // ✅ RETIRÉ
       socketService.off('driverLocationUpdate', handleLocationUpdate);
     };
   }, [dispatch]);
@@ -280,6 +352,7 @@ const HomePage = () => {
         <IconButton onClick={() => setDrawerOpen(true)} sx={{ bgcolor: 'background.paper', boxShadow: 3, borderRadius: '12px' }}><Badge color="error" variant="dot" invisible={unreadCount === 0}><MenuIcon /></Badge></IconButton>
       </Box>
 
+      {/* BARRE DE RECHERCHE */}
       {!activeRide && (
         <Box sx={{ px: 2, mb: 1, zIndex: 100, mt: isMapVisible ? 0 : 4 }}>
           <Paper sx={{ display: 'flex', alignItems: 'center', p: 0.8, px: 2, borderRadius: '16px', boxShadow: 4 }}>
@@ -304,6 +377,7 @@ const HomePage = () => {
         </Box>
       )}
 
+      {/* CARTE */}
       <Box sx={{ flexGrow: 1, position: 'relative', zIndex: 10 }}>
         {isMapVisible && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ height: '100%', width: '100%', borderRadius: '24px 24px 0 0', overflow: 'hidden' }}>
@@ -312,6 +386,7 @@ const HomePage = () => {
         )}
       </Box>
 
+      {/* TIROIR BAS : CHOIX VÉHICULE OU INFO CHAUFFEUR */}
       <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 150 }}>
         <AnimatePresence mode="wait">
           {activeRide ? (

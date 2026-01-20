@@ -1,8 +1,9 @@
-import { apiSlice } from '../api/apiSlice';
+// src/features/rides/ridesApiSlice.js
+import { apiSlice } from '../api/apiSlice'; // ✅ CORRECTION : Chemin exact (voisin)
 
 export const ridesApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // 1. Récupérer l'historique (Ton code existant)
+    // 1. Historique des courses
     getRideHistory: builder.query({
       query: () => ({
         url: '/rides/history',
@@ -12,7 +13,7 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       keepUnusedDataFor: 5,
     }),
 
-    // 2. Créer une course (Ton code existant)
+    // 2. Créer une course (Passager)
     createRide: builder.mutation({
       query: (rideData) => ({
         url: '/rides',
@@ -22,20 +23,40 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ['Ride'],
     }),
 
-    // 3. Accepter une course (NOUVEAU - AJOUTÉ)
+    // 3. Accepter une course (Chauffeur)
     acceptRide: builder.mutation({
       query: (rideId) => ({
         url: `/rides/${rideId}/accept`,
         method: 'PUT',
       }),
-      // Invalider 'Ride' permet de rafraîchir l'historique automatiquement après avoir accepté
+      invalidatesTags: ['Ride'],
+    }),
+
+    // 4. Démarrer la course - Client à bord (Chauffeur)
+    startRide: builder.mutation({
+      query: (rideId) => ({
+        url: `/rides/${rideId}/start`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Ride'],
+    }),
+
+    // 5. Terminer la course (Chauffeur)
+    completeRide: builder.mutation({
+      query: (rideId) => ({
+        url: `/rides/${rideId}/complete`,
+        method: 'PUT',
+      }),
       invalidatesTags: ['Ride'],
     }),
   }),
 });
 
+// EXPORT DES HOOKS (Indispensable pour HomePage)
 export const { 
   useGetRideHistoryQuery,
   useCreateRideMutation,
-  useAcceptRideMutation // <--- Export du nouveau hook
+  useAcceptRideMutation,
+  useStartRideMutation,
+  useCompleteRideMutation
 } = ridesApiSlice;

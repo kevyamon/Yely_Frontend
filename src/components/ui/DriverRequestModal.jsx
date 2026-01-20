@@ -1,87 +1,125 @@
 // src/components/ui/DriverRequestModal.jsx
 import React from 'react';
-import { Box, Typography, Button, Modal, Fade, Stack, Avatar } from '@mui/material';
-import { motion } from 'framer-motion';
+import { Dialog, Box, Typography, Button, Slide, Avatar, Stack } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import NavigationIcon from '@mui/icons-material/Navigation';
+import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
+
+const Transition = React.forwardRef(function Transition(props, ref) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 
 const DriverRequestModal = ({ open, request, onAccept, onDecline }) => {
   if (!request) return null;
 
   return (
-    <Modal
+    <Dialog
       open={open}
-      closeAfterTransition
-      sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      TransitionComponent={Transition}
+      keepMounted
+      fullWidth
+      maxWidth="xs"
+      PaperProps={{
+        style: {
+          borderRadius: 24,
+          backgroundColor: '#1a1a1a',
+          color: 'white',
+          margin: 16,
+          position: 'absolute',
+          bottom: 0,
+          width: 'calc(100% - 32px)'
+        },
+      }}
     >
-      <Fade in={open}>
-        <Box sx={{ 
-          width: '90%', maxWidth: 400, 
-          bgcolor: 'rgba(20, 20, 20, 0.95)', 
-          backdropFilter: 'blur(25px)', 
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          borderRadius: '32px', 
-          p: 3, 
-          boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
-          outline: 'none',
-          color: 'white'
-        }}>
-          
-          <Stack direction="row" alignItems="center" spacing={2} mb={3}>
-            <Avatar sx={{ bgcolor: '#FFC107', color: 'black', fontWeight: 'bold', width: 56, height: 56 }}>
-              {request.clientName ? request.clientName[0] : 'C'}
-            </Avatar>
-            <Box>
-              <Typography variant="h6" fontWeight="900">Nouvelle Course ! 🔥</Typography>
-              <Typography variant="body2" sx={{ opacity: 0.7 }}>{request.distance || '2.5 km'} • {request.category || 'Standard'}</Typography>
-            </Box>
-            <Box sx={{ ml: 'auto !important' }}>
-              <Typography variant="h5" fontWeight="900" color="#FFC107">
-                {request.price} F
+      <Box sx={{ p: 3 }}>
+        
+        {/* EN-TÊTE : TYPE & PRIX */}
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+          <Box>
+            <Typography variant="h6" fontWeight="bold">Nouvelle Course !</Typography>
+            <Stack direction="row" alignItems="center" spacing={0.5} mt={0.5}>
+              <LocalFireDepartmentIcon sx={{ color: '#FF5722', fontSize: 18 }} />
+              <Typography variant="body2" color="text.secondary">
+                {request.distance || '2.5 km'} • {request.category || 'Standard'}
               </Typography>
-            </Box>
-          </Stack>
-
-          <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '20px', p: 2, mb: 4 }}>
-            <Stack direction="row" spacing={2} mb={2}>
-              <NavigationIcon sx={{ color: '#4CAF50', fontSize: 20, mt: 0.5 }} />
-              <Box>
-                <Typography variant="caption" sx={{ opacity: 0.5 }}>DÉPART (5 min)</Typography>
-                <Typography variant="body1" fontWeight="bold">{request.pickupAddress || 'Position actuelle'}</Typography>
-              </Box>
-            </Stack>
-            
-            <Box sx={{ width: 2, height: 20, bgcolor: 'rgba(255,255,255,0.1)', ml: 1.1, my: 0.5 }} />
-
-            <Stack direction="row" spacing={2}>
-              <LocationOnIcon sx={{ color: '#FFC107', fontSize: 20, mt: 0.5 }} />
-              <Box>
-                <Typography variant="caption" sx={{ opacity: 0.5 }}>ARRIVÉE</Typography>
-                <Typography variant="body1" fontWeight="bold">{request.dropoffAddress}</Typography>
-              </Box>
             </Stack>
           </Box>
-
-          <Stack direction="row" spacing={2}>
-            <Button 
-              fullWidth variant="outlined" onClick={onDecline}
-              sx={{ py: 2, borderRadius: '18px', borderColor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 'bold' }}
-            >
-              REFUSER
-            </Button>
-            
-            <motion.div whileTap={{ scale: 0.95 }} style={{ width: '100%' }}>
-              <Button 
-                fullWidth variant="contained" onClick={onAccept}
-                sx={{ py: 2, borderRadius: '18px', bgcolor: '#FFC107', color: 'black', fontWeight: '900', fontSize: '1.1rem' }}
-              >
-                ACCEPTER
-              </Button>
-            </motion.div>
-          </Stack>
+          
+          {/* 🟢 CORRECTION PRIX : Taille ajustée et couleur jaune flash */}
+          <Typography variant="h4" fontWeight="900" sx={{ color: '#FFC107', lineHeight: 1 }}>
+            {request.price} F
+          </Typography>
         </Box>
-      </Fade>
-    </Modal>
+
+        {/* CLIENT */}
+        <Box display="flex" alignItems="center" mb={3} sx={{ bgcolor: 'rgba(255,255,255,0.05)', p: 1.5, borderRadius: 3 }}>
+          <Avatar sx={{ bgcolor: '#FFC107', color: 'black', mr: 2, fontWeight: 'bold' }}>
+            {request.client?.name ? request.client.name[0] : 'C'}
+          </Avatar>
+          <Box>
+            <Typography variant="subtitle1" fontWeight="bold">
+                {request.client?.name || 'Client Yély'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+                {request.client?.rating || '4.9'} ⭐
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* ITINÉRAIRE */}
+        <Box sx={{ position: 'relative', pl: 2, mb: 4 }}>
+          {/* Ligne verticale */}
+          <Box sx={{ 
+            position: 'absolute', left: 7, top: 8, bottom: 20, 
+            width: 2, bgcolor: 'rgba(255,255,255,0.2)' 
+          }} />
+
+          {/* DÉPART */}
+          <Box mb={3} position="relative">
+            <NavigationIcon sx={{ position: 'absolute', left: -22, top: 0, fontSize: 16, color: '#4CAF50' }} />
+            <Typography variant="caption" color="success.main" fontWeight="bold">DÉPART (5 min)</Typography>
+            <Typography variant="body1" fontWeight="bold" noWrap>
+              {request.pickupLocation?.address || "Position actuelle"}
+            </Typography>
+          </Box>
+
+          {/* ARRIVÉE */}
+          <Box position="relative">
+            <LocationOnIcon sx={{ position: 'absolute', left: -22, top: 0, fontSize: 16, color: '#FFC107' }} />
+            <Typography variant="caption" color="primary" fontWeight="bold">ARRIVÉE</Typography>
+            <Typography variant="body1" fontWeight="bold" noWrap>
+              {request.dropoffLocation?.address || "Destination"}
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* BOUTONS D'ACTION */}
+        <Stack direction="row" spacing={2}>
+          <Button 
+            fullWidth 
+            variant="outlined" 
+            color="error" 
+            onClick={onDecline}
+            sx={{ borderRadius: 4, py: 1.5, borderColor: 'rgba(255,255,255,0.2)', color: 'white' }}
+          >
+            REFUSER
+          </Button>
+          <Button 
+            fullWidth 
+            variant="contained" 
+            onClick={onAccept}
+            sx={{ 
+              borderRadius: 4, py: 1.5, 
+              bgcolor: '#FFC107', color: 'black', fontWeight: '900', fontSize: '1rem',
+              '&:hover': { bgcolor: '#FFD54F' }
+            }}
+          >
+            ACCEPTER
+          </Button>
+        </Stack>
+
+      </Box>
+    </Dialog>
   );
 };
 
