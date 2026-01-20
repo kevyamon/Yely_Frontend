@@ -34,14 +34,9 @@ function App() {
     if (user && user.token) {
       socketService.connect(user.token);
 
-      // 🔴 SUPPRESSION : On ne force plus le joinZone('drivers') ici.
-      // C'est le Switch dans HomePage qui décidera.
-
-      // Écoute des nouvelles courses
+      // Écoute des nouvelles courses (SILENCE TOTAL)
       socketService.on('newRideAvailable', (rideData) => {
-        // Gardien de sécurité (Double vérification)
         if (user.role === 'driver') {
-           // Console log supprimé ici pour le silence
            setIncomingRide(rideData); 
         }
       });
@@ -58,9 +53,9 @@ function App() {
     try {
       await acceptRide(incomingRide._id).unwrap();
       setIncomingRide(null);
-      dispatch(showToast({ message: 'Course acceptée ! Navigation lancée 🚀', type: 'success' }));
+      // Le succès est géré par l'événement socket 'rideAccepted'
     } catch (error) {
-      console.error("Erreur acceptation:", error);
+      // Pas de console.error ici, le Toast suffit
       dispatch(showToast({ message: 'Trop tard ! Course déjà prise.', type: 'error' }));
       setIncomingRide(null);
     }

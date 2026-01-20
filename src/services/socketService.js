@@ -8,17 +8,19 @@ class SocketService {
   pendingListeners = [];
 
   connect(token) {
-    if (this.socket) return;
+    // Sécurité anti-doublon pour éviter les erreurs jaunes
+    if (this.socket && (this.socket.connected || this.socket.connecting)) return;
 
     this.socket = io(SOCKET_URL, {
       auth: { token },
       transports: ['websocket'],
       reconnection: true,
+      reconnectionAttempts: 5, // Limite les tentatives pour ne pas spammer
     });
 
-    this.socket.on('connect_error', (err) => {
-      // On garde juste les erreurs critiques de connexion
-      // console.error('❌ Erreur Socket :', err.message); 
+    // On masque les erreurs dans la console (le navigateur peut encore en afficher en rouge si c'est critique, c'est inévitable)
+    this.socket.on('connect_error', () => {
+      // Silence radio sur les erreurs de connexion
     });
 
     if (this.pendingListeners.length > 0) {
@@ -31,7 +33,10 @@ class SocketService {
 
   disconnect() {
     if (this.socket) {
-      this.socket.disconnect();
+      // On ne coupe que si c'est vraiment connecté pour éviter le warning "closed before established"
+      if (this.socket.connected) {
+        this.socket.disconnect();
+      }
       this.socket = null;
     }
   }
@@ -55,8 +60,7 @@ class SocketService {
   emit(eventName, data) {
     if (this.socket && this.socket.connected) {
       this.socket.emit(eventName, data);
-    } 
-    // Sinon, silence total (plus de warning jaune)
+    }
   }
 }
 
