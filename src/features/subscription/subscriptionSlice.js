@@ -1,27 +1,59 @@
+// src/features/subscription/subscriptionSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// URL de base
-const API_URL = '/api/payments';
+// On utilise l'URL de base définie par Vite ou par défaut
+const BASE_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+const API_URL = `${BASE_URL}/payments`;
 
-// 1. ACTION : PAYER L'ABONNEMENT
-export const paySubscription = createAsyncThunk(
-  'subscription/pay',
-  async ({ plan, paymentMethod }, thunkAPI) => {
+// 1. DÉMARRER LE PAIEMENT (Obtenir le lien Wave)
+export const initPayment = createAsyncThunk(
+  'subscription/init',
+  async ({ plan }, thunkAPI) => {
     try {
       const token = thunkAPI.getState().auth.user.token;
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      };
+      const config = { headers: { Authorization: `Bearer ${token}` } };
       
-      // On envoie la demande au backend
-      const response = await axios.post(`${API_URL}/subscribe`, { plan, paymentMethod }, config);
-      return response.data; // Retourne la confirmation et la nouvelle date d'expiration
-
+      const response = await axios.post(`${API_URL}/init`, { plan }, config);
+      return response.data; // { paymentUrl, transactionId, mode, amount }
     } catch (error) {
-      const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
+      const message = error.response?.data?.message || error.message;
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// 2. VÉRIFIER LE PAIEMENT (Confirmer auprès du Backend)
+export const verifyPayment = createAsyncThunk(
+  'subscription/verify',
+  async ({ transactionId, plan }, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token;
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      
+      const response = await axios.post(`${API_URL}/verify`, { transactionId, plan }, config);
+      return response.data; // { success: true, expiresAt: ... }
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// 3. VÉRIFIER LE STATUT (Le Vigile)
+export const checkSubscriptionStatus = createAsyncThunk(
+  'subscription/checkStatus',
+  async (_, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token;
+      // Si pas de token (pas connecté), on ne vérifie pas
+      if (!token) return thunkAPI.rejectWithValue('No token');
+
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const response = await axios.get(`${API_URL}/status`, config);
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
       return thunkAPI.rejectWithValue(message);
     }
   }
@@ -30,37 +62,50 @@ export const paySubscription = createAsyncThunk(
 const subscriptionSlice = createSlice({
   name: 'subscription',
   initialState: {
-    isLoading: false,
-    isSuccess: false,
+    status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+    subscriptionStatus: null, // 'active' | 'inactive'
+    paymentData: null, // Stocke l'ID de transaction temporaire
     message: '',
   },
   reducers: {
     resetSubscriptionState: (state) => {
-      state.isLoading = false;
-      state.isSuccess = false;
+      state.status = 'idle';
       state.message = '';
+      state.paymentData = null;
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(paySubscription.pending, (state) => {
-        state.isLoading = true;
+      // INIT
+      .addCase(initPayment.pending, (state) => { state.status = 'loading'; })
+      .addCase(initPayment.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.paymentData = action.payload; // On garde les infos pour la suite
       })
-      .addCase(paySubscription.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.isSuccess = true;
-        state.message = action.payload.message;
+      .addCase(initPayment.rejected, (state, action) => {
+        state.status = 'failed';
+        state.message = action.payload;
+      })
+      // VERIFY
+      .addCase(verifyPayment.pending, (state) => { state.status = 'loading'; })
+      .addCase(verifyPayment.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.subscriptionStatus = 'active'; // C'est bon, on débloque !
         
-        // ASTUCE : On met à jour l'utilisateur dans le LocalStorage pour débloquer l'app immédiatement
+        // Mettre à jour le User en local pour éviter un refresh
         const currentUser = JSON.parse(localStorage.getItem('user'));
         if (currentUser) {
-          currentUser.subscription = action.payload.subscription;
+          currentUser.subscription = { ...currentUser.subscription, status: 'active', expiresAt: action.payload.expiresAt };
           localStorage.setItem('user', JSON.stringify(currentUser));
         }
       })
-      .addCase(paySubscription.rejected, (state, action) => {
-        state.isLoading = false;
+      .addCase(verifyPayment.rejected, (state, action) => {
+        state.status = 'failed';
         state.message = action.payload;
+      })
+      // CHECK STATUS
+      .addCase(checkSubscriptionStatus.fulfilled, (state, action) => {
+        state.subscriptionStatus = action.payload.status;
       });
   },
 });

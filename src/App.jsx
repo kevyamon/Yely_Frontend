@@ -10,6 +10,7 @@ import { showToast } from './features/common/uiSlice';
 
 import AppToast from './components/ui/AppToast'; 
 import DriverRequestModal from './components/ui/DriverRequestModal';
+import SubscriptionGuard from './components/auth/SubscriptionGuard'; // <--- LE NOUVEAU VIGILE
 
 import LandingPage from './pages/LandingPage';
 import RegisterPage from './pages/RegisterPage';
@@ -29,12 +30,12 @@ function App() {
   const [incomingRide, setIncomingRide] = useState(null);
   const [acceptRide] = useAcceptRideMutation(); 
 
-  // --- LOGIQUE SOCKET ---
+  // --- LOGIQUE SOCKET (Talkie-Walkie) ---
   useEffect(() => {
     if (user && user.token) {
       socketService.connect(user.token);
 
-      // Écoute des nouvelles courses (SILENCE TOTAL)
+      // Le chauffeur écoute s'il y a du travail
       socketService.on('newRideAvailable', (rideData) => {
         if (user.role === 'driver') {
            setIncomingRide(rideData); 
@@ -47,15 +48,15 @@ function App() {
     };
   }, [user]);
 
-  // --- ACTION : ACCEPTER ---
+  // --- ACTION : ACCEPTER UNE COURSE ---
   const handleAcceptRide = async () => {
     if (!incomingRide) return;
     try {
       await acceptRide(incomingRide._id).unwrap();
       setIncomingRide(null);
-      // Le succès est géré par l'événement socket 'rideAccepted'
+      // Le succès est géré par l'événement socket 'rideAccepted' ailleurs
     } catch (error) {
-      // Pas de console.error ici, le Toast suffit
+      // Pas de console.error ici, le Toast suffit pour l'utilisateur
       dispatch(showToast({ message: 'Trop tard ! Course déjà prise.', type: 'error' }));
       setIncomingRide(null);
     }
@@ -65,10 +66,11 @@ function App() {
     setIncomingRide(null);
   };
 
+  // --- CONFIGURATION DU DESIGN (THÈME) ---
   const theme = useMemo(() => createTheme({
     palette: {
       mode: mode,
-      primary: { main: '#FFC107' },
+      primary: { main: '#FFC107' }, // Jaune Yély
       background: {
         default: mode === 'dark' ? '#050505' : '#f4f6f8',
         paper: mode === 'dark' ? '#0a0a0a' : '#ffffff',
@@ -89,24 +91,33 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline /> 
       <AppToast />
+      
+      {/* Modale qui s'affiche quand une course sonne */}
       <DriverRequestModal 
         open={!!incomingRide} 
         request={incomingRide} 
         onAccept={handleAcceptRide}
         onDecline={handleDeclineRide}
       />
+
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/subscription" element={<SubscriptionPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/account" element={<AccountPage />} />
-        </Routes>
+        {/* LE GARDIEN (<SubscriptionGuard>) ENTOURE TOUTES LES ROUTES 
+            Il vérifie chaque changement de page. Si le chauffeur n'a pas payé, 
+            le Gardien l'intercepte et l'envoie payer. 
+        */}
+        <SubscriptionGuard>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/subscription" element={<SubscriptionPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/account" element={<AccountPage />} />
+          </Routes>
+        </SubscriptionGuard>
       </BrowserRouter>
     </ThemeProvider>
   );
