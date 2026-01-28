@@ -1,37 +1,30 @@
 // kevyamon/yely_frontend/src/features/subscription/subscriptionSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import axios from 'axios';
 
-// L'URL de base (Vite proxy ou variable d'env)
-const API_URL = '/api/subscription';
+// Configuration de l'URL de base
+// Si on est en dev (localhost), on utilise le proxy, sinon l'URL de prod
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = `${BASE_URL}/api/subscription`;
 
-// --- ACTION : ENVOYER LA PREUVE ---
-// C'est notre "coursier" qui prend le paquet (formData) et l'amène au serveur
+// --- 1. L'ACTION PRINCIPALE : ENVOYER LA PREUVE (NOUVEAU) ---
 export const submitSubscriptionProof = createAsyncThunk(
   'subscription/submitProof',
   async (formData, thunkAPI) => {
     try {
-      // 1. On récupère le badge d'accès (Token) du chauffeur connecté
-      const token = thunkAPI.getState().auth.userInfo.token;
-
-      // 2. On prépare l'envoi
-      // NOTE IMPORTANTE : Avec FormData (fichier), on ne met PAS 'Content-Type': 'application/json'
-      // Le navigateur le fait tout seul pour gérer l'image.
+      // Récupération du token
+      const token = thunkAPI.getState().auth.userInfo?.token;
+      
       const config = {
-        method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data', // Crucial pour l'envoi d'image
         },
-        body: formData,
       };
 
-      const response = await fetch(`${API_URL}/submit-proof`, config);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Erreur lors de l\'envoi');
-      }
-
-      return data;
+      // On poste vers la nouvelle route qu'on a créée
+      const response = await axios.post(`${API_URL}/submit-proof`, formData, config);
+      return response.data;
 
     } catch (error) {
       const message =
@@ -43,24 +36,51 @@ export const submitSubscriptionProof = createAsyncThunk(
   }
 );
 
+// --- 2. LE VIGILE : VÉRIFIER LE STATUT (L'ANCIEN AMÉLIORÉ) ---
+// Cette fonction sert à rafraîchir le statut de l'utilisateur pour voir si l'admin a validé
+export const checkSubscriptionStatus = createAsyncThunk(
+    'subscription/checkStatus',
+    async (_, thunkAPI) => {
+      try {
+        const token = thunkAPI.getState().auth.userInfo?.token;
+        if (!token) return thunkAPI.rejectWithValue('Non connecté');
+  
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        
+        // On demande au backend : "C'est quoi mon statut actuel ?"
+        // Note: On utilise souvent user profile pour ça, mais gardons la logique séparée si tu préfères
+        const response = await axios.get(`${BASE_URL}/api/users/profile`, config);
+        
+        // On renvoie juste la partie abonnement
+        return response.data.subscription; 
+  
+      } catch (error) {
+        const message = error.response?.data?.message || error.message;
+        return thunkAPI.rejectWithValue(message);
+      }
+    }
+  );
+
 const subscriptionSlice = createSlice({
   name: 'subscription',
   initialState: {
-    transaction: null, // La dernière transaction effectuée
     isLoading: false,
-    isSuccess: false,
+    isSuccess: false, // Vrai si l'envoi de la preuve a marché
     error: null,
+    currentSubscription: null, // Stocke les infos de l'abo (active, date fin...)
+    lastTransaction: null, // Pour garder une trace de ce qu'on vient d'envoyer
   },
   reducers: {
     resetSubscriptionState: (state) => {
       state.isLoading = false;
       state.isSuccess = false;
       state.error = null;
-      state.transaction = null;
+      state.lastTransaction = null;
     },
   },
   extraReducers: (builder) => {
     builder
+      // --- CAS : ENVOI DE PREUVE ---
       .addCase(submitSubscriptionProof.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -68,11 +88,16 @@ const subscriptionSlice = createSlice({
       .addCase(submitSubscriptionProof.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.transaction = action.payload; // On garde la trace
+        state.lastTransaction = action.payload.transaction;
       })
       .addCase(submitSubscriptionProof.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
+      })
+
+      // --- CAS : VÉRIFICATION DU STATUT ---
+      .addCase(checkSubscriptionStatus.fulfilled, (state, action) => {
+        state.currentSubscription = action.payload;
       });
   },
 });
