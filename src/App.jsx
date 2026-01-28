@@ -10,8 +10,9 @@ import { showToast } from './features/common/uiSlice';
 
 import AppToast from './components/ui/AppToast'; 
 import DriverRequestModal from './components/ui/DriverRequestModal';
-import SubscriptionGuard from './components/auth/SubscriptionGuard'; // <--- LE NOUVEAU VIGILE
+import SubscriptionGuard from './components/auth/SubscriptionGuard';
 
+// Pages Utilisateurs
 import LandingPage from './pages/LandingPage';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
@@ -21,6 +22,11 @@ import ProfilePage from './pages/ProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
 import HistoryPage from './pages/HistoryPage';
 import AccountPage from './pages/AccountPage';
+
+// Pages Admin
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import ValidationCenter from './pages/admin/ValidationCenter';
 
 function App() {
   const { mode } = useSelector((state) => state.theme);
@@ -107,15 +113,24 @@ function App() {
         */}
         <SubscriptionGuard>
           <Routes>
+            {/* Routes Publiques */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
+            
+            {/* Routes Utilisateurs */}
             <Route path="/home" element={<HomePage />} />
             <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/account" element={<AccountPage />} />
+
+            {/* Routes Admin */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="validations" element={<ValidationCenter />} />
+            </Route>
           </Routes>
         </SubscriptionGuard>
       </BrowserRouter>
