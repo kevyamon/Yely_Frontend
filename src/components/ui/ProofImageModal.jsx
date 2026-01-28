@@ -1,229 +1,265 @@
 // src/components/ui/ProofImageModal.jsx
+
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogTitle,
   DialogActions,
-  Button,
   Box,
   Typography,
+  Button,
   IconButton,
-  TextField,
+  Avatar,
   Chip,
+  TextField,
   useTheme,
-  useMediaQuery,
+  CircularProgress
 } from '@mui/material';
 import {
-  Close as CloseIcon,
-  CheckCircle as CheckIcon,
-  Cancel as CancelIcon,
-  Phone as PhoneIcon,
-  CalendarToday as CalendarIcon,
-  AttachMoney as MoneyIcon,
+  Close,
+  CheckCircle,
+  Cancel,
+  Phone,
+  CalendarMonth,
+  Diamond,
+  AttachMoney
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
 
-function ProofImageModal({ open, onClose, transaction, onApprove, onReject, loading }) {
+const ProofImageModal = ({ open, onClose, transaction, onApprove, onReject, loading }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isDark = theme.palette.mode === 'dark';
+  const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [showRejectInput, setShowRejectInput] = useState(false);
 
   if (!transaction) return null;
 
-  const handleApprove = () => {
-    onApprove(transaction._id);
-    onClose();
-  };
+  const isWeekly = transaction.type === 'WEEKLY';
+  const planColor = isWeekly ? '#2196F3' : '#9C27B0';
+  const PlanIcon = isWeekly ? CalendarMonth : Diamond;
 
-  const handleReject = () => {
+  const handleRejectClick = () => {
     if (!rejectReason.trim()) {
-      alert('Merci de préciser une raison du rejet');
       return;
     }
     onReject(transaction._id, rejectReason);
+    setRejectMode(false);
     setRejectReason('');
-    setShowRejectInput(false);
-    onClose();
   };
 
-  const planLabel = transaction.subscriptionType === 'WEEKLY' ? '1 Semaine (1200F)' : '1 Mois (6000F)';
-  const planColor = transaction.subscriptionType === 'WEEKLY' ? '#2196F3' : '#9C27B0';
+  const handleClose = () => {
+    setRejectMode(false);
+    setRejectReason('');
+    onClose();
+  };
 
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       maxWidth="md"
       fullWidth
-      fullScreen={isMobile}
       PaperProps={{
         sx: {
-          bgcolor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#fff',
-          backgroundImage: 'none',
-          borderRadius: isMobile ? 0 : 3,
-        },
+          borderRadius: '24px',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(26,26,26,0.95) 100%)'
+            : 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(250,250,250,0.98) 100%)',
+          backdropFilter: 'blur(20px)',
+          border: `1px solid ${planColor}30`
+        }
       }}
     >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
-        <Typography variant="h6" fontWeight="bold">
-          🔍 Vérification de preuve
-        </Typography>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon />
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          zIndex: 1
+        }}
+      >
+        <IconButton onClick={handleClose} sx={{ bgcolor: 'rgba(0,0,0,0.5)' }}>
+          <Close sx={{ color: '#fff' }} />
         </IconButton>
-      </DialogTitle>
+      </Box>
 
-      <DialogContent dividers>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {/* Info Chauffeur */}
+      <DialogContent sx={{ p: 0 }}>
+        <Box
+          component="img"
+          src={transaction.proofImageUrl}
+          alt="Preuve"
+          sx={{
+            width: '100%',
+            maxHeight: '60vh',
+            objectFit: 'contain',
+            bgcolor: '#000',
+            borderRadius: '24px 24px 0 0'
+          }}
+        />
+
+        <Box sx={{ p: 3 }}>
+          <Box display="flex" alignItems="center" gap={2} mb={3}>
+            <Avatar
+              sx={{
+                bgcolor: `${planColor}20`,
+                width: 56,
+                height: 56
+              }}
+            >
+              <PlanIcon sx={{ color: planColor, fontSize: 32 }} />
+            </Avatar>
+            <Box flex={1}>
+              <Typography variant="h6" fontWeight="bold">
+                {transaction.driver?.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {transaction.driver?.email}
+              </Typography>
+            </Box>
+            <Chip
+              label={transaction.driver?.driverId}
+              size="small"
+              sx={{ fontWeight: 'bold' }}
+            />
+          </Box>
+
           <Box
             sx={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 2,
+              mb: 3,
               p: 2,
-              borderRadius: 2,
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 215, 0, 0.05)' : 'rgba(255, 215, 0, 0.1)',
-              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 215, 0, 0.3)'}`,
+              bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+              borderRadius: '16px'
             }}
           >
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              CHAUFFEUR
-            </Typography>
-            <Typography variant="h6" fontWeight="bold">
-              {transaction.driver?.name || 'Inconnu'}
-            </Typography>
+            <Box>
+              <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                <PlanIcon sx={{ fontSize: 20, color: planColor }} />
+                <Typography variant="caption" color="text.secondary">
+                  Formule
+                </Typography>
+              </Box>
+              <Typography variant="body1" fontWeight="bold">
+                {isWeekly ? 'Hebdomadaire' : 'Mensuel'}
+              </Typography>
+            </Box>
 
-            <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
-              <Chip
-                icon={<PhoneIcon />}
-                label={transaction.paymentPhone}
-                size="small"
-                sx={{ bgcolor: 'rgba(33, 150, 243, 0.1)', color: '#2196F3' }}
-              />
-              <Chip
-                icon={<MoneyIcon />}
-                label={planLabel}
-                size="small"
-                sx={{ bgcolor: `${planColor}22`, color: planColor, fontWeight: 'bold' }}
-              />
-              <Chip
-                icon={<CalendarIcon />}
-                label={new Date(transaction.createdAt).toLocaleDateString('fr-FR')}
-                size="small"
-                variant="outlined"
-              />
+            <Box>
+              <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                <AttachMoney sx={{ fontSize: 20, color: '#4CAF50' }} />
+                <Typography variant="caption" color="text.secondary">
+                  Montant
+                </Typography>
+              </Box>
+              <Typography variant="body1" fontWeight="bold" color="#4CAF50">
+                {transaction.amount} FCFA
+              </Typography>
+            </Box>
+
+            <Box sx={{ gridColumn: '1 / -1' }}>
+              <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                <Phone sx={{ fontSize: 20, color: 'text.secondary' }} />
+                <Typography variant="caption" color="text.secondary">
+                  Numéro de paiement
+                </Typography>
+              </Box>
+              <Typography variant="body1" fontWeight="bold">
+                {transaction.paymentPhoneNumber}
+              </Typography>
             </Box>
           </Box>
 
-          {/* Image de preuve */}
-          <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              CAPTURE D'ÉCRAN ENVOYÉE
-            </Typography>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Box
-                sx={{
-                  position: 'relative',
-                  width: '100%',
-                  borderRadius: 2,
-                  overflow: 'hidden',
-                  bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5',
-                  border: `2px solid ${theme.palette.divider}`,
-                }}
-              >
-                <img
-                  src={transaction.proofImageUrl}
-                  alt="Preuve de paiement"
-                  style={{
-                    width: '100%',
-                    height: 'auto',
-                    maxHeight: '60vh',
-                    objectFit: 'contain',
-                    display: 'block',
-                  }}
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/400x600?text=Image+non+disponible';
-                  }}
-                />
-              </Box>
-            </motion.div>
-          </Box>
-
-          {/* Zone de rejet */}
-          <AnimatePresence>
-            {showRejectInput && (
+          <AnimatePresence mode="wait">
+            {rejectMode ? (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
               >
                 <TextField
                   fullWidth
                   multiline
                   rows={3}
-                  label="Raison du rejet"
-                  placeholder="Ex: Image illisible, montant incorrect, capture d'écran incomplète..."
+                  placeholder="Pourquoi rejetez-vous cette demande ? (ex: Image floue, montant incorrect...)"
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  sx={{ mt: 2 }}
+                  sx={{
+                    mb: 2,
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px'
+                    }
+                  }}
                 />
+                <Box display="flex" gap={2}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => setRejectMode(false)}
+                    disabled={loading}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    color="error"
+                    onClick={handleRejectClick}
+                    disabled={loading || !rejectReason.trim()}
+                    startIcon={loading ? <CircularProgress size={20} /> : <Cancel />}
+                  >
+                    {loading ? 'Rejet...' : 'Confirmer le rejet'}
+                  </Button>
+                </Box>
               </motion.div>
-            )}
+            ) : null}
           </AnimatePresence>
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ p: 2, gap: 1 }}>
-        {!showRejectInput ? (
-          <>
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<CancelIcon />}
-              onClick={() => setShowRejectInput(true)}
-              disabled={loading}
-              sx={{ borderRadius: 2 }}
-            >
-              Rejeter
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<CheckIcon />}
-              onClick={handleApprove}
-              disabled={loading}
-              sx={{
-                bgcolor: '#4CAF50',
-                '&:hover': { bgcolor: '#45a049' },
-                borderRadius: 2,
-                fontWeight: 'bold',
-              }}
-            >
-              ✅ Valider & Activer
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button onClick={() => setShowRejectInput(false)} disabled={loading}>
-              Annuler
-            </Button>
-            <Button
-              variant="contained"
-              color="error"
-              onClick={handleReject}
-              disabled={loading || !rejectReason.trim()}
-              sx={{ borderRadius: 2, fontWeight: 'bold' }}
-            >
-              Confirmer le rejet
-            </Button>
-          </>
-        )}
-      </DialogActions>
+      {!rejectMode && (
+        <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            color="error"
+            size="large"
+            onClick={() => setRejectMode(true)}
+            disabled={loading}
+            startIcon={<Cancel />}
+            sx={{
+              borderRadius: '12px',
+              py: 1.5,
+              fontWeight: 'bold'
+            }}
+          >
+            REJETER
+          </Button>
+
+          <Button
+            fullWidth
+            variant="contained"
+            size="large"
+            onClick={() => onApprove(transaction._id)}
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}
+            sx={{
+              bgcolor: '#4CAF50',
+              borderRadius: '12px',
+              py: 1.5,
+              fontWeight: 'bold',
+              '&:hover': {
+                bgcolor: '#45A049'
+              }
+            }}
+          >
+            {loading ? 'VALIDATION...' : 'VALIDER'}
+          </Button>
+        </DialogActions>
+      )}
     </Dialog>
   );
-}
+};
 
 export default ProofImageModal;

@@ -1,6 +1,7 @@
 // src/App.jsx
+
 import { useEffect, useState, useMemo } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { useSelector, useDispatch } from 'react-redux';
 
@@ -11,8 +12,8 @@ import { showToast } from './features/common/uiSlice';
 import AppToast from './components/ui/AppToast'; 
 import DriverRequestModal from './components/ui/DriverRequestModal';
 import SubscriptionGuard from './components/auth/SubscriptionGuard';
+import AdminGuard from './components/auth/AdminGuard';
 
-// Pages Utilisateurs
 import LandingPage from './pages/LandingPage';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
@@ -23,10 +24,11 @@ import NotificationsPage from './pages/NotificationsPage';
 import HistoryPage from './pages/HistoryPage';
 import AccountPage from './pages/AccountPage';
 
-// Pages Admin
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ValidationCenter from './pages/admin/ValidationCenter';
+import UsersManagement from './pages/admin/UsersManagement';
+import FinancePage from './pages/admin/FinancePage';
 
 function App() {
   const { mode } = useSelector((state) => state.theme);
@@ -36,12 +38,10 @@ function App() {
   const [incomingRide, setIncomingRide] = useState(null);
   const [acceptRide] = useAcceptRideMutation(); 
 
-  // --- LOGIQUE SOCKET (Talkie-Walkie) ---
   useEffect(() => {
     if (user && user.token) {
       socketService.connect(user.token);
 
-      // Le chauffeur écoute s'il y a du travail
       socketService.on('newRideAvailable', (rideData) => {
         if (user.role === 'driver') {
            setIncomingRide(rideData); 
@@ -54,15 +54,12 @@ function App() {
     };
   }, [user]);
 
-  // --- ACTION : ACCEPTER UNE COURSE ---
   const handleAcceptRide = async () => {
     if (!incomingRide) return;
     try {
       await acceptRide(incomingRide._id).unwrap();
       setIncomingRide(null);
-      // Le succès est géré par l'événement socket 'rideAccepted' ailleurs
     } catch (error) {
-      // Pas de console.error ici, le Toast suffit pour l'utilisateur
       dispatch(showToast({ message: 'Trop tard ! Course déjà prise.', type: 'error' }));
       setIncomingRide(null);
     }
@@ -72,11 +69,10 @@ function App() {
     setIncomingRide(null);
   };
 
-  // --- CONFIGURATION DU DESIGN (THÈME) ---
   const theme = useMemo(() => createTheme({
     palette: {
       mode: mode,
-      primary: { main: '#FFC107' }, // Jaune Yély
+      primary: { main: '#FFC107' },
       background: {
         default: mode === 'dark' ? '#050505' : '#f4f6f8',
         paper: mode === 'dark' ? '#0a0a0a' : '#ffffff',
@@ -98,7 +94,6 @@ function App() {
       <CssBaseline /> 
       <AppToast />
       
-      {/* Modale qui s'affiche quand une course sonne */}
       <DriverRequestModal 
         open={!!incomingRide} 
         request={incomingRide} 
@@ -107,32 +102,59 @@ function App() {
       />
 
       <BrowserRouter>
-        {/* LE GARDIEN (<SubscriptionGuard>) ENTOURE TOUTES LES ROUTES 
-            Il vérifie chaque changement de page. Si le chauffeur n'a pas payé, 
-            le Gardien l'intercepte et l'envoie payer. 
-        */}
-        <SubscriptionGuard>
-          <Routes>
-            {/* Routes Publiques */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            
-            {/* Routes Utilisateurs */}
-            <Route path="/home" element={<HomePage />} />
-            <Route path="/subscription" element={<SubscriptionPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/account" element={<AccountPage />} />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          
+          <Route path="/subscription" element={
+            <SubscriptionGuard>
+              <SubscriptionPage />
+            </SubscriptionGuard>
+          } />
 
-            {/* Routes Admin */}
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route path="dashboard" element={<AdminDashboard />} />
-              <Route path="validations" element={<ValidationCenter />} />
-            </Route>
-          </Routes>
-        </SubscriptionGuard>
+          <Route path="/home" element={
+            <SubscriptionGuard>
+              <HomePage />
+            </SubscriptionGuard>
+          } />
+
+          <Route path="/profile" element={
+            <SubscriptionGuard>
+              <ProfilePage />
+            </SubscriptionGuard>
+          } />
+
+          <Route path="/notifications" element={
+            <SubscriptionGuard>
+              <NotificationsPage />
+            </SubscriptionGuard>
+          } />
+
+          <Route path="/history" element={
+            <SubscriptionGuard>
+              <HistoryPage />
+            </SubscriptionGuard>
+          } />
+
+          <Route path="/account" element={
+            <SubscriptionGuard>
+              <AccountPage />
+            </SubscriptionGuard>
+          } />
+
+          <Route path="/admin" element={
+            <AdminGuard>
+              <AdminLayout />
+            </AdminGuard>
+          }>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="validations" element={<ValidationCenter />} />
+            <Route path="users" element={<UsersManagement />} />
+            <Route path="finance" element={<FinancePage />} />
+          </Route>
+        </Routes>
       </BrowserRouter>
     </ThemeProvider>
   );

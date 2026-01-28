@@ -1,4 +1,5 @@
 // src/pages/admin/ValidationCenter.jsx
+
 import { useState, useEffect } from 'react';
 import {
   Box,
@@ -38,9 +39,8 @@ function ValidationCenter() {
   const [modalOpen, setModalOpen] = useState(false);
   const [filterTab, setFilterTab] = useState('all');
 
-  // Configuration axios avec token
   const apiClient = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
     headers: {
       'Authorization': `Bearer ${user?.token}`,
     },
@@ -53,7 +53,7 @@ function ValidationCenter() {
   const fetchPendingTransactions = async () => {
     try {
       setLoading(true);
-      const { data } = await apiClient.get('/admin/validations/pending');
+      const { data } = await apiClient.get('/api/admin/validations/pending');
       setTransactions(data);
     } catch (error) {
       console.error('Erreur chargement:', error);
@@ -77,17 +77,17 @@ function ValidationCenter() {
   const handleApprove = async (transactionId) => {
     try {
       setActionLoading(true);
-      await apiClient.put(`/admin/validations/${transactionId}/approve`);
+      await apiClient.put(`/api/admin/validations/${transactionId}/approve`);
       
-      // Retirer de la liste
       setTransactions((prev) => prev.filter((t) => t._id !== transactionId));
       
-      // Toast de succès avec nom du chauffeur
       const driverName = selectedTransaction?.driver?.name || 'Le chauffeur';
       dispatch(showToast({
         message: `✅ ${driverName} peut maintenant travailler !`,
         type: 'success'
       }));
+      
+      setModalOpen(false);
     } catch (error) {
       let errorMsg = '❌ Impossible de valider';
       if (error.response?.status === 401) {
@@ -108,19 +108,20 @@ function ValidationCenter() {
   const handleReject = async (transactionId, reason) => {
     try {
       setActionLoading(true);
-      await apiClient.put(`/admin/validations/${transactionId}/reject`, { reason });
+      await apiClient.put(`/api/admin/validations/${transactionId}/reject`, { reason });
       
-      // Retirer de la liste
       setTransactions((prev) => prev.filter((t) => t._id !== transactionId));
       
       dispatch(showToast({
-        message: '✅ Demande rejetée. Le chauffeur a été informé',
+        message: '✅ Demande rejetée',
         type: 'info'
       }));
+      
+      setModalOpen(false);
     } catch (error) {
       let errorMsg = '❌ Impossible de rejeter';
       if (error.response?.status === 401) {
-        errorMsg = '🔒 Session expirée. Reconnectez-vous';
+        errorMsg = '🔒 Session expirée';
       }
       
       dispatch(showToast({
@@ -137,18 +138,17 @@ function ValidationCenter() {
     setModalOpen(true);
   };
 
-  // Filtrage des transactions
   const filteredTransactions = transactions.filter((t) => {
-    if (!isSuperAdmin && t.subscriptionType !== 'MONTHLY') return false;
-    if (filterTab === 'weekly') return t.subscriptionType === 'WEEKLY';
-    if (filterTab === 'monthly') return t.subscriptionType === 'MONTHLY';
+    if (!isSuperAdmin && t.type !== 'MONTHLY') return false;
+    if (filterTab === 'weekly') return t.type === 'WEEKLY';
+    if (filterTab === 'monthly') return t.type === 'MONTHLY';
     return true;
   });
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: 2 }}>
-        <CircularProgress sx={{ color: '#FFD700' }} />
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: 2, p: 4 }}>
+        <CircularProgress sx={{ color: '#FFC107' }} size={60} />
         <Typography variant="body1" color="text.secondary">
           Chargement des demandes...
         </Typography>
@@ -157,18 +157,16 @@ function ValidationCenter() {
   }
 
   return (
-    <Box>
-      {/* Header */}
+    <Box sx={{ p: { xs: 2, md: 4 } }}>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
-          ✅ Centre de Validation
+        <Typography variant="h4" fontWeight="900" gutterBottom>
+          Centre de Validation
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Validez ou rejetez les preuves de paiement envoyées par les chauffeurs
+        <Typography variant="body2" color="text.secondary">
+          Validez ou rejetez les preuves de paiement
         </Typography>
       </Box>
 
-      {/* Stats rapides */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         <Chip
           icon={<ScheduleIcon />}
@@ -185,8 +183,8 @@ function ValidationCenter() {
             icon={<CheckCircleIcon />}
             label="Mode SuperAdmin"
             sx={{
-              bgcolor: 'rgba(255, 215, 0, 0.1)',
-              color: '#FFD700',
+              bgcolor: 'rgba(255, 193, 7, 0.1)',
+              color: '#FFC107',
               fontWeight: 'bold',
               px: 1,
             }}
@@ -194,14 +192,15 @@ function ValidationCenter() {
         )}
       </Box>
 
-      {/* Filtres (SuperAdmin uniquement) */}
       {isSuperAdmin && transactions.length > 0 && (
         <Paper
+          elevation={0}
           sx={{
             mb: 3,
             p: 0.5,
-            background: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#fff',
-            borderRadius: 2,
+            background: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255,255,255,0.8)',
+            borderRadius: '16px',
+            border: '1px solid rgba(255,193,7,0.2)'
           }}
         >
           <Tabs
@@ -209,34 +208,42 @@ function ValidationCenter() {
             onChange={(e, newValue) => setFilterTab(newValue)}
             sx={{
               '& .MuiTab-root': { textTransform: 'none', fontWeight: 'bold' },
-              '& .Mui-selected': { color: '#FFD700' },
+              '& .Mui-selected': { color: '#FFC107' },
             }}
           >
             <Tab icon={<FilterIcon />} iconPosition="start" label="Tout voir" value="all" />
-            <Tab label="🔵 Hebdomadaires" value="weekly" />
-            <Tab label="🟣 Mensuels" value="monthly" />
+            <Tab label="📅 Hebdomadaires" value="weekly" />
+            <Tab label="💎 Mensuels" value="monthly" />
           </Tabs>
         </Paper>
       )}
 
-      {/* Liste des validations */}
       {filteredTransactions.length === 0 ? (
-        <Alert severity="info" sx={{ borderRadius: 2, fontSize: '1rem' }}>
+        <Alert 
+          severity="info" 
+          sx={{ 
+            borderRadius: '16px', 
+            fontSize: '1rem',
+            border: '1px solid rgba(33,150,243,0.3)'
+          }}
+        >
           🎉 Aucune demande en attente. Tout est validé !
         </Alert>
       ) : (
-        <Grid container spacing={2}>
+        <Grid container spacing={3}>
           <AnimatePresence>
             {filteredTransactions.map((transaction) => (
               <Grid item xs={12} sm={6} md={4} key={transaction._id}>
-                <ValidationCard transaction={transaction} onClick={() => handleCardClick(transaction)} />
+                <ValidationCard 
+                  transaction={transaction} 
+                  onClick={() => handleCardClick(transaction)} 
+                />
               </Grid>
             ))}
           </AnimatePresence>
         </Grid>
       )}
 
-      {/* Modale de zoom */}
       <ProofImageModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
