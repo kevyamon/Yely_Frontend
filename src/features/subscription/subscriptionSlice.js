@@ -1,17 +1,15 @@
-// kevyamon/yely_frontend/src/features/subscription/subscriptionSlice.js
+// src/features/subscription/subscriptionSlice.js
+
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// On s'assure d'utiliser la bonne URL Backend
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_URL = `${BACKEND_URL}/api/subscription`;
 
-// --- 1. ENVOYER LA PREUVE ---
 export const submitSubscriptionProof = createAsyncThunk(
   'subscription/submitProof',
   async (formData, thunkAPI) => {
     try {
-      // CORRECTION ICI : On utilise .user et pas .userInfo
       const token = thunkAPI.getState().auth.user?.token;
       
       const config = {
@@ -34,28 +32,21 @@ export const submitSubscriptionProof = createAsyncThunk(
   }
 );
 
-// --- 2. VÉRIFIER LE STATUT (SILENCIEUX) ---
 export const checkSubscriptionStatus = createAsyncThunk(
     'subscription/checkStatus',
     async (_, thunkAPI) => {
       try {
-        // CORRECTION ICI AUSSI : .user au lieu de .userInfo
         const token = thunkAPI.getState().auth.user?.token;
         
-        // Si pas de token, on retourne null calmement (pas d'erreur rouge)
         if (!token) return null; 
-  
+
         const config = { headers: { Authorization: `Bearer ${token}` } };
         
-        // On interroge le profil utilisateur pour avoir le statut à jour
-        const response = await axios.get(`${BACKEND_URL}/api/users/profile`, config);
+        const response = await axios.get(`${API_URL}/status`, config);
         
-        // On retourne l'objet subscription complet
-        return response.data.subscription; 
-  
+        return response.data;
+
       } catch (error) {
-        // Si erreur silencieuse, on ne rejette pas forcément pour ne pas spammer la console
-        // mais on peut le faire si on veut debuguer
         const message = error.response?.data?.message || error.message;
         return thunkAPI.rejectWithValue(message);
       }
@@ -68,7 +59,8 @@ const subscriptionSlice = createSlice({
     isLoading: false,
     isSuccess: false,
     error: null,
-    currentSubscription: null,
+    subscriptionStatus: 'inactive',
+    subscriptionData: null,
     lastTransaction: null,
   },
   reducers: {
@@ -81,7 +73,6 @@ const subscriptionSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Submit Proof
       .addCase(submitSubscriptionProof.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -95,11 +86,10 @@ const subscriptionSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
-      // Check Status
       .addCase(checkSubscriptionStatus.fulfilled, (state, action) => {
-        // Si action.payload est null (non connecté), on ne fait rien
         if (action.payload) {
-            state.currentSubscription = action.payload;
+          state.subscriptionStatus = action.payload.status;
+          state.subscriptionData = action.payload;
         }
       });
   },
