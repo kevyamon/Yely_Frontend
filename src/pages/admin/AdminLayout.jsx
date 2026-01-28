@@ -1,54 +1,47 @@
 // src/pages/admin/AdminLayout.jsx
-
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import {
-  Box,
-  Drawer,
-  AppBar,
-  Toolbar,
-  Typography,
-  IconButton,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ListItemButton,
-  Avatar,
-  Divider,
-  Badge,
-  useTheme,
-  useMediaQuery
+import { useSelector, useDispatch } from 'react-redux';
+import { 
+  Box, 
+  Drawer, 
+  List, 
+  ListItem, 
+  ListItemButton, 
+  ListItemIcon, 
+  ListItemText, 
+  IconButton, 
+  Typography, 
+  Avatar, 
+  useTheme, 
+  useMediaQuery,
+  Tooltip
 } from '@mui/material';
-import {
+import { 
+  LayoutDashboard, 
+  CheckCircle, 
+  Users, 
+  Wallet, 
+  LogOut, 
   Menu as MenuIcon,
-  Dashboard,
-  CheckCircle,
-  People,
-  AttachMoney,
-  ExitToApp,
-  ChevronLeft,
-  AdminPanelSettings
-} from '@mui/icons-material';
+  ShieldAlert,
+  ChevronLeft
+} from 'lucide-react';
 import { logout } from '../../features/auth/authSlice';
-import { useDispatch } from 'react-redux';
 
 const drawerWidth = 280;
 
 const AdminLayout = () => {
-  const [mobileOpen, setMobileOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const navigate = useNavigate();
-  const location = useLocation();
-  const dispatch = useDispatch();
+  const [mobileOpen, setMobileOpen] = useState(false);
   
   const { user } = useSelector((state) => state.auth);
-  const isDark = theme.palette.mode === 'dark';
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const superAdminEmail = import.meta.env.VITE_ADMIN_MAIL;
-  const isSuperAdmin = user?.email === superAdminEmail;
+  const isSuperAdmin = user?.role === 'superAdmin';
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -60,222 +53,160 @@ const AdminLayout = () => {
   };
 
   const menuItems = [
-    { 
-      text: 'Dashboard', 
-      icon: <Dashboard />, 
-      path: '/admin/dashboard',
-      show: true
-    },
-    { 
-      text: 'Validations', 
-      icon: <CheckCircle />, 
-      path: '/admin/validations',
-      badge: 0,
-      show: true
-    },
-    { 
-      text: 'Utilisateurs', 
-      icon: <People />, 
-      path: '/admin/users',
-      show: true
-    },
-    { 
-      text: 'Finance', 
-      icon: <AttachMoney />, 
-      path: '/admin/finance',
-      show: isSuperAdmin
-    },
+    { path: '/admin/dashboard', label: 'Tableau de Bord', icon: <LayoutDashboard size={22} /> },
+    { path: '/admin/validation', label: 'Validations', icon: <CheckCircle size={22} /> },
+    { path: '/admin/users', label: 'Utilisateurs', icon: <Users size={22} /> },
+    // Menu Finance (SuperAdmin uniquement)
+    ...(isSuperAdmin ? [{ path: '/admin/finance', label: 'Finance & Config', icon: <Wallet size={22} />, isSpecial: true }] : []),
   ];
 
-  const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography variant="h4" fontWeight="900" gutterBottom>
-          <span style={{ color: '#FFC107' }}>Y</span>
-          <span style={{ color: isDark ? '#fff' : '#000' }}>ély</span>
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 2 }}>
-          Admin Panel
-        </Typography>
-      </Box>
-
-      <Divider />
-
-      <Box sx={{ p: 2 }}>
-        <Box 
-          sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            p: 2, 
-            borderRadius: '16px',
-            background: isDark 
-              ? 'linear-gradient(135deg, rgba(255,193,7,0.1) 0%, rgba(0,0,0,0.3) 100%)'
-              : 'linear-gradient(135deg, rgba(255,193,7,0.1) 0%, rgba(255,255,255,0.5) 100%)',
-            border: '1px solid rgba(255,193,7,0.2)'
-          }}
-        >
-          <Avatar 
-            sx={{ 
-              bgcolor: '#FFC107', 
-              color: '#000',
-              width: 48,
-              height: 48,
-              fontWeight: 'bold'
-            }}
-          >
-            {isSuperAdmin ? <AdminPanelSettings /> : user?.name?.charAt(0)}
-          </Avatar>
-          <Box ml={2} flex={1}>
-            <Typography variant="body2" fontWeight="bold">
-              {user?.name}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {isSuperAdmin ? 'Super Admin' : 'Admin'}
-            </Typography>
-          </Box>
+  // LE DESIGN DU MENU GLASSY
+  const drawerContent = (
+    <Box sx={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      // Fond Glassy pour le menu
+      background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+      backdropFilter: 'blur(20px)',
+      color: 'white'
+    }}>
+      {/* En-tête du Menu */}
+      <Box sx={{ p: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ 
+          width: 40, height: 40, borderRadius: '12px', 
+          bgcolor: '#FFC107', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 0 20px rgba(255, 193, 7, 0.4)'
+        }}>
+          <ShieldAlert color="black" size={24} />
+        </Box>
+        <Box>
+          <Typography variant="h6" fontWeight="900" sx={{ lineHeight: 1, letterSpacing: '1px' }}>
+            YÉLY <span style={{ color: '#FFC107' }}>ADMIN</span>
+          </Typography>
+          <Typography variant="caption" sx={{ opacity: 0.5, letterSpacing: '2px' }}>CONTROL TOWER</Typography>
         </Box>
       </Box>
 
-      <List sx={{ flex: 1, px: 1 }}>
-        {menuItems.filter(item => item.show).map((item) => (
-          <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
-            <ListItemButton
-              onClick={() => {
-                navigate(item.path);
-                if (isMobile) setMobileOpen(false);
-              }}
-              selected={location.pathname === item.path}
-              sx={{
-                borderRadius: '12px',
-                '&.Mui-selected': {
-                  bgcolor: 'rgba(255,193,7,0.15)',
-                  '&:hover': {
-                    bgcolor: 'rgba(255,193,7,0.2)',
-                  }
-                },
-                '&:hover': {
-                  bgcolor: 'rgba(255,193,7,0.08)',
-                }
-              }}
-            >
-              <ListItemIcon sx={{ color: location.pathname === item.path ? '#FFC107' : 'inherit' }}>
-                {item.badge ? (
-                  <Badge badgeContent={item.badge} color="error">
-                    {item.icon}
-                  </Badge>
-                ) : item.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={item.text}
-                primaryTypographyProps={{
-                  fontWeight: location.pathname === item.path ? 'bold' : 'normal'
+      {/* Liste des Liens */}
+      <List sx={{ px: 2, flexGrow: 1 }}>
+        {menuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <ListItem key={item.path} disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                onClick={() => {
+                  navigate(item.path);
+                  if (isMobile) setMobileOpen(false);
                 }}
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
+                sx={{
+                  borderRadius: '16px',
+                  py: 1.5,
+                  transition: 'all 0.3s ease',
+                  // Style Actif vs Inactif
+                  background: isActive ? 'linear-gradient(90deg, rgba(255,193,7,0.2) 0%, rgba(255,193,7,0.05) 100%)' : 'transparent',
+                  border: isActive ? '1px solid rgba(255,193,7,0.3)' : '1px solid transparent',
+                  '&:hover': {
+                    background: 'rgba(255,255,255,0.05)',
+                    transform: 'translateX(5px)'
+                  }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, color: isActive ? '#FFC107' : 'rgba(255,255,255,0.5)' }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.label} 
+                  primaryTypographyProps={{ 
+                    fontWeight: isActive ? 'bold' : 'medium',
+                    color: isActive ? '#FFC107' : 'rgba(255,255,255,0.7)'
+                  }} 
+                />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
       </List>
 
-      <Divider />
-
-      <Box sx={{ p: 2 }}>
-        <ListItemButton
-          onClick={handleLogout}
-          sx={{
-            borderRadius: '12px',
-            border: '1px solid rgba(244,67,54,0.3)',
-            '&:hover': {
-              bgcolor: 'rgba(244,67,54,0.1)',
-            }
-          }}
-        >
-          <ListItemIcon sx={{ color: '#f44336' }}>
-            <ExitToApp />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Déconnexion"
-            primaryTypographyProps={{ color: '#f44336', fontWeight: 'bold' }}
-          />
-        </ListItemButton>
+      {/* Pied de page du Menu (Profil) */}
+      <Box sx={{ p: 2, mt: 'auto' }}>
+        <Box sx={{ 
+          p: 2, borderRadius: '20px', 
+          bgcolor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)',
+          display: 'flex', alignItems: 'center', gap: 2 
+        }}>
+          <Avatar src={user?.profilePicture?.url} alt={user?.name} sx={{ width: 40, height: 40, border: '2px solid #FFC107' }}>
+            {user?.name?.charAt(0)}
+          </Avatar>
+          <Box sx={{ overflow: 'hidden' }}>
+            <Typography variant="subtitle2" fontWeight="bold" noWrap>{user?.name}</Typography>
+            <Typography variant="caption" sx={{ color: '#FFC107', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {isSuperAdmin ? '👑 Super Admin' : '🛡️ Admin'}
+            </Typography>
+          </Box>
+          <Tooltip title="Déconnexion">
+            <IconButton onClick={handleLogout} size="small" sx={{ ml: 'auto', color: '#ff4444', '&:hover': { bgcolor: 'rgba(255,68,68,0.1)' } }}>
+              <LogOut size={18} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh' }}>
-      <AppBar
-        position="fixed"
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#0a0a0a' }}>
+      {/* Bouton Menu Mobile */}
+      <IconButton
+        color="inherit"
+        aria-label="open drawer"
+        edge="start"
+        onClick={handleDrawerToggle}
+        sx={{ mr: 2, display: { md: 'none' }, position: 'fixed', top: 16, left: 16, zIndex: 1100, bgcolor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)' }}
+      >
+        <MenuIcon color="white" />
+      </IconButton>
+
+      {/* Drawer Mobile */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{ keepMounted: true }}
         sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
-          bgcolor: isDark ? 'rgba(10,10,10,0.8)' : 'rgba(255,255,255,0.8)',
-          backdropFilter: 'blur(20px)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          display: { md: 'none' }
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth, bgcolor: 'transparent', borderRight: 'none' },
         }}
       >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2 }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" fontWeight="bold">
-            <span style={{ color: '#FFC107' }}>Y</span>ély Admin
-          </Typography>
-        </Toolbar>
-      </AppBar>
+        {drawerContent}
+      </Drawer>
 
-      <Box
-        component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+      {/* Drawer Desktop (Fixe) */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth, bgcolor: 'transparent', borderRight: '1px solid rgba(255,255,255,0.05)' },
+        }}
+        open
       >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              bgcolor: 'background.default'
-            },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              bgcolor: 'background.default',
-              borderRight: '1px solid rgba(255,193,7,0.1)'
-            },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
+        {drawerContent}
+      </Drawer>
 
+      {/* Zone de Contenu Principale */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
+          p: 3,
           width: { md: `calc(100% - ${drawerWidth}px)` },
           minHeight: '100vh',
-          bgcolor: 'background.default',
-          pt: { xs: 8, md: 0 }
+          background: 'radial-gradient(circle at top right, #1a1a1a 0%, #000000 100%)', // Fond global subtil
+          overflowX: 'hidden'
         }}
       >
+        {/* On ajoute un spacer pour le mobile car le bouton menu est fixed */}
+        <Box sx={{ height: { xs: 60, md: 0 } }} />
         <Outlet />
       </Box>
     </Box>
