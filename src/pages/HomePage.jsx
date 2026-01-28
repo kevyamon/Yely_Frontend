@@ -37,14 +37,12 @@ import HistoryIcon from '@mui/icons-material/History';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 
 // ==================================================================================
-// 🚖 INTERFACE CHAUFFEUR (DASHBOARD) - MODE MISSION
+// 🚖 1. INTERFACE CHAUFFEUR (DASHBOARD) - MODE MISSION
 // ==================================================================================
 const DriverDashboard = ({ user, userLocation }) => {
-  // 1. ÉTATS : En ligne par défaut
   const [isOnline, setIsOnline] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   
-  // 2. ÉTAT DE LA COURSE (Machine à états)
   // 0 = Rien, 1 = Approche (Accepté), 2 = En route (Client à bord)
   const [rideStatus, setRideStatus] = useState(0); 
   const [activeRideId, setActiveRideId] = useState(null);
@@ -53,7 +51,6 @@ const DriverDashboard = ({ user, userLocation }) => {
   const isDark = theme.palette.mode === 'dark';
   const dispatch = useDispatch();
 
-  // 3. API ACTIONS (Télécommande)
   const [startRide] = useStartRideMutation();
   const [completeRide] = useCompleteRideMutation();
   
@@ -63,7 +60,6 @@ const DriverDashboard = ({ user, userLocation }) => {
   // --- A. ÉCOUTE SOCKET (DÉBUT DE MISSION) ---
   useEffect(() => {
     const handleRideStart = (ride) => {
-      // Le backend nous dit "C'est validé". On passe en mode "Approche" (État 1)
       setActiveRideId(ride._id);
       setRideStatus(1); 
       setIsOnline(true);
@@ -74,13 +70,11 @@ const DriverDashboard = ({ user, userLocation }) => {
 
   // --- B. TRACKING GPS (SILENCIEUX) ---
   useEffect(() => {
-    // Si GPS pas prêt, on attend (pas d'erreur rouge)
     if (isOnline && !userLocation.coordinates.lat) return;
 
     let interval;
     if (isOnline && userLocation.coordinates.lat) {
       const sendPos = () => {
-        // On envoie 'coordinates'
         socketService.emit('updateLocation', {
           userId: user._id, 
           role: 'driver',
@@ -91,9 +85,8 @@ const DriverDashboard = ({ user, userLocation }) => {
 
       socketService.emit('joinZone', 'drivers'); 
       sendPos();
-      interval = setInterval(sendPos, 5000); // 5 secondes
+      interval = setInterval(sendPos, 5000); 
     } else {
-      // On quitte seulement si le GPS était déjà chargé
       if (userLocation.loaded) socketService.emit('leaveZone', 'drivers'); 
     }
     return () => clearInterval(interval);
@@ -105,15 +98,13 @@ const DriverDashboard = ({ user, userLocation }) => {
 
     try {
       if (rideStatus === 1) {
-        // ÉTAPE 1 -> 2 : CLIENT À BORD
         await startRide(activeRideId).unwrap();
         setRideStatus(2); 
         dispatch(showToast({ message: 'Course démarrée ! Bonne route 🏁', type: 'success' }));
       } 
       else if (rideStatus === 2) {
-        // ÉTAPE 2 -> FIN : TERMINER
         await completeRide(activeRideId).unwrap();
-        setRideStatus(0); // Retour au repos
+        setRideStatus(0); 
         setActiveRideId(null);
         dispatch(showToast({ message: 'Course terminée ! Encaissement... 💰', type: 'success' }));
       }
@@ -140,7 +131,7 @@ const DriverDashboard = ({ user, userLocation }) => {
         </IconButton>
       </Box>
 
-      {/* 🛑 PANNEAU D'ACTION (MODE MISSION) */}
+      {/* 🛑 PANNEAU D'ACTION */}
       {activeRideId ? (
         <Box sx={{ p: 2, bgcolor: isDark ? '#1a1a1a' : '#fff3e0', borderBottom: '2px solid #FFC107', zIndex: 101 }}>
           <Typography variant="subtitle2" fontWeight="bold" align="center" sx={{ mb: 1, color: '#FFC107' }}>
@@ -153,7 +144,7 @@ const DriverDashboard = ({ user, userLocation }) => {
             size="large"
             onClick={handleNextStep}
             sx={{ 
-              bgcolor: rideStatus === 1 ? '#2196F3' : '#4CAF50', // Bleu (Départ) -> Vert (Fin)
+              bgcolor: rideStatus === 1 ? '#2196F3' : '#4CAF50',
               color: 'white', py: 2, fontSize: '1.1rem', fontWeight: '900',
               borderRadius: '16px',
               boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
@@ -164,7 +155,6 @@ const DriverDashboard = ({ user, userLocation }) => {
           </Button>
         </Box>
       ) : (
-        /* BARRE STATUT STANDARD (MODE ATTENTE) */
         <Box sx={{ px: 2, py: 1.5, bgcolor: 'background.paper', boxShadow: 3, zIndex: 99 }}>
           <Card sx={{ bgcolor: isOnline ? 'rgba(76, 175, 80, 0.1)' : 'rgba(244, 67, 54, 0.1)', border: '1px solid', borderColor: isOnline ? 'success.main' : 'error.main', borderRadius: '16px', boxShadow: 'none' }}>
             <CardContent sx={{ p: '12px !important', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -187,21 +177,13 @@ const DriverDashboard = ({ user, userLocation }) => {
 };
 
 // ==================================================================================
-// 👤 INTERFACE PASSAGER (CLIENT)
+// 👤 2. INTERFACE PASSAGER (CLIENT) - ISOLÉE
 // ==================================================================================
-const HomePage = () => {
+const PassengerInterface = ({ user, userLocation }) => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
   const theme = useTheme(); 
   const isDark = theme.palette.mode === 'dark';
-  const userLocation = useGeolocation();
 
-  if (user?.role === 'driver') {
-    return <DriverDashboard user={user} userLocation={userLocation} />;
-  }
-
-  // --- ÉTATS PASSAGER ---
   const [isMapVisible, setIsMapVisible] = useState(false);
   const [isWaitingForDriver, setIsWaitingForDriver] = useState(false);
   const [activeRide, setActiveRide] = useState(null); 
@@ -228,9 +210,8 @@ const HomePage = () => {
     }
   }, [debouncedDest]);
 
-  // --- 👂 ORCHESTRATION SOCKET PASSAGER (LA CLÉ DU TEMPS RÉEL) ---
+  // --- 👂 ORCHESTRATION SOCKET PASSAGER ---
   useEffect(() => {
-    // 1. CHAUFFEUR A ACCEPTÉ (Déclenche le mode suivi)
     const handleRideAccepted = (ride) => {
       console.log("✅ ACCEPTÉ :", ride);
       setIsWaitingForDriver(false);
@@ -239,19 +220,16 @@ const HomePage = () => {
       dispatch(showToast({ message: 'Chauffeur en route ! 🚗', type: 'success' }));
     };
 
-    // 2. CHAUFFEUR A DÉMARRÉ (Mise à jour texte "En route")
     const handleRideStarted = (updatedRide) => {
       console.log("🚀 DÉMARRÉ :", updatedRide);
-      setActiveRide(updatedRide); // Ceci met à jour DriverInfoCard
+      setActiveRide(updatedRide); 
       dispatch(showToast({ message: 'Course démarrée ! Bonne route', type: 'info' }));
     };
 
-    // 3. CHAUFFEUR A TERMINÉ (Mise à jour texte "Terminé")
     const handleRideCompleted = (completedRide) => {
       console.log("🏁 TERMINÉ :", completedRide);
-      setActiveRide(completedRide); // Affiche "Vous êtes arrivé"
+      setActiveRide(completedRide); 
       
-      // Petit délai avant de réinitialiser l'écran
       setTimeout(() => {
         setActiveRide(null); 
         setDestination('');
@@ -261,22 +239,19 @@ const HomePage = () => {
       }, 4000);
     };
 
-    // 4. Tracking Position
     const handleLocationUpdate = (coords) => {
-      // Connecté plus tard
+      // Logic de mise à jour live
     };
 
-    // ABONNEMENTS
     socketService.on('rideAccepted', handleRideAccepted);
-    socketService.on('rideStarted', handleRideStarted);     // ✅ AJOUTÉ
-    socketService.on('rideCompleted', handleRideCompleted); // ✅ AJOUTÉ
+    socketService.on('rideStarted', handleRideStarted);    
+    socketService.on('rideCompleted', handleRideCompleted); 
     socketService.on('driverLocationUpdate', handleLocationUpdate);
 
-    // NETTOYAGE
     return () => {
       socketService.off('rideAccepted', handleRideAccepted);
-      socketService.off('rideStarted', handleRideStarted);     // ✅ RETIRÉ
-      socketService.off('rideCompleted', handleRideCompleted); // ✅ RETIRÉ
+      socketService.off('rideStarted', handleRideStarted);    
+      socketService.off('rideCompleted', handleRideCompleted); 
       socketService.off('driverLocationUpdate', handleLocationUpdate);
     };
   }, [dispatch]);
@@ -344,6 +319,7 @@ const HomePage = () => {
       <RideSearchOverlay isVisible={isWaitingForDriver} onCancel={handleCancelSearch} />
       <AppDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
+      {/* HEADER PASSAGER */}
       <Box sx={{ p: 2, pt: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100 }}>
         <Box>
           <Typography variant="h4" fontWeight="900"><span style={{ color: '#FFC107' }}>Y</span><span style={{ color: isDark ? 'white' : 'black' }}>ély</span></Typography>
@@ -386,7 +362,7 @@ const HomePage = () => {
         )}
       </Box>
 
-      {/* TIROIR BAS : CHOIX VÉHICULE OU INFO CHAUFFEUR */}
+      {/* TIROIR BAS */}
       <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 150 }}>
         <AnimatePresence mode="wait">
           {activeRide ? (
@@ -430,6 +406,23 @@ const HomePage = () => {
       </Box>
     </Box>
   );
+};
+
+// ==================================================================================
+// 🏠 3. PAGE PRINCIPALE (AIGUILLEUR) - CLEAN & STABLE
+// ==================================================================================
+const HomePage = () => {
+  // Ici, on ne met que les hooks STRICTEMENT nécessaires au choix de l'interface
+  const { user } = useSelector((state) => state.auth);
+  const userLocation = useGeolocation();
+
+  // Condition propre : On rend l'un OU l'autre.
+  if (user?.role === 'driver') {
+    return <DriverDashboard user={user} userLocation={userLocation} />;
+  }
+
+  // Par défaut, interface passager
+  return <PassengerInterface user={user} userLocation={userLocation} />;
 };
 
 export default HomePage;
