@@ -1,147 +1,200 @@
 // src/components/ui/AppDrawer.jsx
-import React, { useMemo } from 'react';
-import { 
-  Box, Typography, Button, Drawer, List, ListItemButton, 
-  ListItemIcon, ListItemText, Avatar, Divider, Badge, Switch, Stack 
+import { useState } from 'react';
+import {
+  Drawer,
+  Box,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Avatar,
+  Switch,
+  Divider,
+  IconButton,
+  useTheme,
 } from '@mui/material';
-import { useDispatch, useSelector } from 'react-redux';
+import {
+  Notifications as NotificationsIcon,
+  History as HistoryIcon,
+  DriveEta as DriveEtaIcon,
+  AccountCircle as AccountCircleIcon,
+  Logout as LogoutIcon,
+  DarkMode as DarkModeIcon,
+  Dashboard as DashboardIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { logout, reset } from '../../features/auth/authSlice';
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from '../../features/auth/authSlice';
 import { toggleTheme } from '../../features/theme/themeSlice';
-import { useGetNotificationsQuery, useMarkAllAsReadMutation } from '../../features/notifications/notificationsApiSlice';
 
-// --- IMPORT DU DÉCLENCHEUR DE NOTIF ---
-import { showToast } from '../../features/common/uiSlice'; 
-
-// Icônes
-import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
-import PersonIcon from '@mui/icons-material/Person';
-import HistoryIcon from '@mui/icons-material/History';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
-import LightModeIcon from '@mui/icons-material/LightMode';
-import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
-import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
-
-const AppDrawer = ({ open, onClose }) => {
+function AppDrawer({ open, onClose }) {
+  const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const { mode } = useSelector((state) => state.theme);
 
-  const { data: notifications = [] } = useGetNotificationsQuery(undefined, { skip: !user, refetchOnMountOrArgChange: true });
-  const [markAllAsRead] = useMarkAllAsReadMutation();
-
-  const unreadCount = useMemo(() => Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0, [notifications]);
-
-  const handleNotificationClick = async () => {
-    navigate('/notifications');
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
     onClose();
-    if (unreadCount > 0) { try { await markAllAsRead().unwrap(); } catch (err) { console.error(err); } }
   };
 
-  const handleLogout = () => { dispatch(logout()); dispatch(reset()); navigate('/'); };
-  const handleNavigate = (path) => { navigate(path); onClose(); };
-
-  // --- NOUVELLE LOGIQUE CLEAN ---
-  const handleComingSoon = () => {
-    dispatch(showToast({ message: '🚧 Bientôt disponible !', type: 'info' }));
-    // Pas de onClose() ici pour laisser l'utilisateur voir le toast
+  const handleNavigation = (path) => {
+    navigate(path);
+    onClose();
   };
 
-  const drawerContent = (
-    <Box sx={{ width: 280, height: '100%', bgcolor: 'background.paper', color: 'text.primary', p: 2, display: 'flex', flexDirection: 'column' }}>
-      
-      {/* HEADER PROFIL */}
-      <Box onClick={() => handleNavigate('/profile')} sx={{ mb: 4, mt: 2, display: 'flex', alignItems: 'center', p: 1, cursor: 'pointer', borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
-        <Avatar sx={{ bgcolor: 'primary.main', color: 'black', width: 50, height: 50, mr: 2, fontWeight: 'bold' }}>
-          {user ? user.name.charAt(0).toUpperCase() : 'Y'}
-        </Avatar>
-        <Box>
-          <Typography variant="h6" fontWeight="bold">{user ? user.name.split(' ')[0] : 'Invité'}</Typography>
-          <Typography variant="caption" color="text.secondary">
-            {user?.role === 'driver' ? 'Chauffeur' : 'Passager'}
-          </Typography>
-        </Box>
-        <ChevronRightIcon sx={{ ml: 'auto', color: 'text.secondary' }} />
-      </Box>
+  const handleThemeToggle = () => {
+    dispatch(toggleTheme());
+  };
 
-      <Divider sx={{ mb: 2 }} />
+  const menuItems = [
+    { text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications' },
+    { text: 'Mes Trajets', icon: <HistoryIcon />, path: '/history' },
+  ];
 
-      {/* SWITCH MODE */}
-      <Box sx={{ px: 2, py: 1, mb: 2, bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 3 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" alignItems="center" spacing={1}>
-            {mode === 'dark' ? <DarkModeIcon color="primary" /> : <LightModeIcon color="warning" />}
-            <Typography variant="body2" fontWeight="bold">Mode {mode === 'dark' ? 'Nuit' : 'Jour'}</Typography>
-          </Stack>
-          <Switch checked={mode === 'dark'} onChange={() => dispatch(toggleTheme())} color="primary" />
-        </Stack>
-      </Box>
+  // Ajouter "Devenir Chauffeur" si l'utilisateur est un rider
+  if (user?.role === 'rider') {
+    menuItems.push({ text: 'Devenir Chauffeur', icon: <DriveEtaIcon />, path: '/become-driver' });
+  }
 
-      <List>
-        {/* NOTIFICATIONS */}
-        <ListItemButton onClick={handleNotificationClick} sx={{ borderRadius: 2, mb: 1 }}>
-          <ListItemIcon sx={{ color: 'primary.main' }}>
-            <Badge badgeContent={unreadCount} color="error" invisible={unreadCount === 0} sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16 } }}>
-              <NotificationsNoneIcon />
-            </Badge>
-          </ListItemIcon>
-          <ListItemText primary="Notifications" secondary={unreadCount > 0 ? `${unreadCount} nouvelle(s)` : null} secondaryTypographyProps={{ fontSize: '0.7rem', color: 'error.main' }} />
-        </ListItemButton>
+  menuItems.push({ text: 'Mon compte', icon: <AccountCircleIcon />, path: '/account' });
 
-        {/* --- MENU CHAUFFEUR --- */}
-        {user?.role === 'driver' && (
-          <>
-            <ListItemButton onClick={() => handleNavigate('/subscription')} sx={{ borderRadius: 2, mb: 1 }}>
-              <ListItemIcon sx={{ color: '#FFC107' }}><WorkspacePremiumIcon /></ListItemIcon>
-              <ListItemText primary="Mon Abonnement" />
-            </ListItemButton>
-            
-            <ListItemButton onClick={() => handleNavigate('/history')} sx={{ borderRadius: 2, mb: 1 }}>
-              <ListItemIcon sx={{ color: 'text.primary' }}><HistoryIcon /></ListItemIcon>
-              <ListItemText primary="Historique Courses" />
-            </ListItemButton>
-          </>
-        )}
-
-        {/* --- MENU PASSAGER --- */}
-        {user?.role === 'rider' && (
-          <>
-            <ListItemButton onClick={() => handleNavigate('/history')} sx={{ borderRadius: 2, mb: 1 }}>
-              <ListItemIcon sx={{ color: 'text.primary' }}><HistoryIcon /></ListItemIcon>
-              <ListItemText primary="Mes Trajets" />
-            </ListItemButton>
-
-             <ListItemButton onClick={handleComingSoon} sx={{ borderRadius: 2, mb: 1 }}>
-              <ListItemIcon sx={{ color: 'text.secondary' }}><LocalTaxiIcon /></ListItemIcon>
-              <ListItemText primary="Devenir Chauffeur" />
-            </ListItemButton>
-          </>
-        )}
-
-        {/* --- COMMUN --- */}
-        <ListItemButton onClick={() => handleNavigate('/account')} sx={{ borderRadius: 2, mb: 1 }}>
-          <ListItemIcon sx={{ color: 'text.primary' }}><PersonIcon /></ListItemIcon>
-          <ListItemText primary="Mon compte" />
-        </ListItemButton>
-      </List>
-
-      <Box sx={{ mt: 'auto', mb: 2 }}>
-        <Button fullWidth variant="outlined" color="error" startIcon={<ExitToAppIcon />} onClick={handleLogout} sx={{ borderRadius: 3, textTransform: 'none' }}>
-          Se déconnecter
-        </Button>
-      </Box>
-    </Box>
-  );
-
-  // Note : On ne retourne plus de <Snackbar> ici, car c'est App.jsx qui gère ça globalement !
   return (
-    <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { bgcolor: mode === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)', boxShadow: '-10px 0 30px rgba(0,0,0,0.2)' } }}>
-      {drawerContent}
+    <Drawer
+      anchor="left"
+      open={open}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          width: 300,
+          bgcolor: theme.palette.mode === 'dark' ? '#0a0a0a' : '#fff',
+          backgroundImage: 'none',
+        },
+      }}
+    >
+      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {/* Header avec profil */}
+        <Box
+          sx={{
+            p: 3,
+            background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+            color: '#000',
+            position: 'relative',
+          }}
+        >
+          <IconButton
+            onClick={onClose}
+            sx={{ position: 'absolute', top: 8, right: 8, color: '#000' }}
+          >
+            <CloseIcon />
+          </IconButton>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 3 }}>
+            <Avatar
+              src={user?.profilePicture}
+              sx={{ width: 60, height: 60, border: '3px solid #000' }}
+            >
+              {user?.name?.[0]}
+            </Avatar>
+            <Box>
+              <Typography variant="h6" fontWeight="bold">
+                {user?.name || 'Utilisateur'}
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                {user?.role === 'driver' ? '🚗 Chauffeur' : '👤 Passager'}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Menu Items */}
+        <List sx={{ flex: 1, px: 2, py: 2 }}>
+          {/* Mode Nuit */}
+          <ListItem disablePadding sx={{ mb: 1 }}>
+            <ListItemButton sx={{ borderRadius: 2 }}>
+              <ListItemIcon>
+                <DarkModeIcon sx={{ color: '#FFD700' }} />
+              </ListItemIcon>
+              <ListItemText primary="Mode Nuit" />
+              <Switch
+                checked={mode === 'dark'}
+                onChange={handleThemeToggle}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: '#FFD700',
+                  },
+                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                    backgroundColor: '#FFD700',
+                  },
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+
+          {/* 👑 BOUTON DASHBOARD ADMIN */}
+          {(user?.role === 'superAdmin' || user?.role === 'admin') && (
+            <>
+              <Divider sx={{ my: 1, borderColor: 'rgba(255, 215, 0, 0.2)' }} />
+              <ListItem disablePadding sx={{ mb: 1 }}>
+                <ListItemButton
+                  onClick={() => handleNavigation('/admin/dashboard')}
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255, 215, 0, 0.1)',
+                    '&:hover': { bgcolor: 'rgba(255, 215, 0, 0.2)' },
+                  }}
+                >
+                  <ListItemIcon sx={{ color: '#FFD700' }}>
+                    <DashboardIcon />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={user?.role === 'superAdmin' ? '👑 Dashboard Admin' : '🛡️ Dashboard Staff'}
+                    primaryTypographyProps={{ fontWeight: 'bold', color: '#FFD700' }}
+                  />
+                </ListItemButton>
+              </ListItem>
+              <Divider sx={{ my: 1, borderColor: 'rgba(255, 215, 0, 0.2)' }} />
+            </>
+          )}
+
+          {/* Autres menus */}
+          {menuItems.map((item) => (
+            <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                onClick={() => handleNavigation(item.path)}
+                sx={{ borderRadius: 2 }}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.text} />
+              </ListItemButton>
+            </ListItem>
+          ))}
+
+          {/* Déconnexion */}
+          <ListItem disablePadding sx={{ mt: 2 }}>
+            <ListItemButton
+              onClick={handleLogout}
+              sx={{
+                borderRadius: 2,
+                bgcolor: 'rgba(244, 67, 54, 0.1)',
+                '&:hover': { bgcolor: 'rgba(244, 67, 54, 0.2)' },
+              }}
+            >
+              <ListItemIcon sx={{ color: '#f44336' }}>
+                <LogoutIcon />
+              </ListItemIcon>
+              <ListItemText primary="Se déconnecter" primaryTypographyProps={{ color: '#f44336' }} />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Box>
     </Drawer>
   );
-};
+}
 
 export default AppDrawer;
