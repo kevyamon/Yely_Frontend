@@ -16,49 +16,40 @@ function AppToast() {
     dispatch(hideToast());
   };
 
-  // Traduire les types d'erreurs techniques en messages simples
-  const getErrorDetails = (message, type) => {
-    // Si c'est pas une erreur, on retourne tel quel
+  // Extraire titre et message pour les erreurs
+  const getDisplayContent = () => {
+    const message = toast.message || '';
+    const type = toast.type || 'info';
+
+    // Si c'est PAS une erreur, on retourne tel quel
     if (type !== 'error') {
       return { title: null, message };
     }
 
-    // Gestion des erreurs
-    if (message.includes('401') || message.includes('Unauthorized') || message.includes('incorrect')) {
-      return {
-        title: '🔒 Accès refusé',
-        message: message.includes('incorrect') ? message : 'Vous devez vous reconnecter',
-      };
+    // Gestion des erreurs avec titres
+    if (message.includes('401') || message.includes('Unauthorized')) {
+      return { title: '🔒 Accès refusé', message: 'Vous devez vous reconnecter' };
+    }
+    if (message.includes('incorrect')) {
+      return { title: null, message }; // On garde le message tel quel
     }
     if (message.includes('403') || message.includes('Forbidden')) {
-      return {
-        title: '⛔ Action non autorisée',
-        message: 'Vous n\'avez pas les droits pour cette action',
-      };
+      return { title: '⛔ Action non autorisée', message: 'Vous n\'avez pas les droits' };
     }
     if (message.includes('404') || message.includes('Not Found')) {
-      return {
-        title: '🔍 Introuvable',
-        message: 'L\'élément recherché n\'existe pas',
-      };
+      return { title: '🔍 Introuvable', message: 'Élément introuvable' };
     }
     if (message.includes('500') || message.includes('Server Error')) {
-      return {
-        title: '⚠️ Erreur serveur',
-        message: 'Problème technique. Réessayez dans un instant',
-      };
+      return { title: '⚠️ Erreur serveur', message: 'Problème technique. Réessayez' };
     }
     if (message.includes('Network Error') || message.includes('timeout')) {
-      return {
-        title: '📡 Problème de connexion',
-        message: 'Vérifiez votre connexion internet',
-      };
+      return { title: '📡 Connexion', message: 'Vérifiez votre internet' };
     }
-    
+
     return { title: null, message };
   };
 
-  const { title, message } = getErrorDetails(toast.message, toast.type);
+  const { title, message } = getDisplayContent();
 
   return (
     <Snackbar
