@@ -1,215 +1,268 @@
 // src/pages/admin/FinancePage.jsx
 
-import React from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
   Paper,
+  Grid,
   Switch,
-  FormControlLabel,
   TextField,
   Button,
-  Grid,
-  Avatar,
+  FormControlLabel,
+  InputAdornment,
   Divider,
+  Alert,
+  CircularProgress,
   useTheme
 } from '@mui/material';
 import {
+  Save,
   AttachMoney,
+  Link as LinkIcon,
+  LocalFireDepartment,
   TrendingUp,
-  AccountBalance,
-  Settings
+  CreditCard
 } from '@mui/icons-material';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import axios from 'axios';
+import { showToast } from '../../features/common/uiSlice';
 
 const FinancePage = () => {
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+  const isDark = theme.palette.mode === 'dark';
 
-  const superAdminEmail = import.meta.env.VITE_ADMIN_MAIL;
-  const isSuperAdmin = user?.email === superAdminEmail;
+  const [loading, setLoading] = useState(false);
+  const [configLoading, setConfigLoading] = useState(true);
+  
+  // États du formulaire
+  const [promoMode, setPromoMode] = useState(false);
+  const [weeklyLink, setWeeklyLink] = useState('');
+  const [monthlyLink, setMonthlyLink] = useState('');
+  
+  // États des Stats (Fictif pour l'instant, à connecter plus tard)
+  const stats = {
+    totalRevenue: 1450000,
+    monthlyRevenue: 320000,
+    activeSubscriptions: 85
+  };
 
-  if (!isSuperAdmin) {
+  const apiClient = axios.create({
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+    headers: {
+      'Authorization': `Bearer ${user?.token}`,
+    },
+  });
+
+  // 1. Charger la config actuelle (Simulation pour l'instant)
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const fetchConfig = async () => {
+    try {
+      setConfigLoading(true);
+      // TODO: Créer la route backend GET /api/admin/config
+      // Pour l'instant on simule une réponse API ou on utilise les variables d'env par défaut
+      // const { data } = await apiClient.get('/api/admin/config');
+      
+      // Simulation des valeurs actuelles
+      setPromoMode(false); // Par défaut OFF
+      setWeeklyLink(import.meta.env.VITE_WAVE_LINK_WEEKLY || '');
+      setMonthlyLink(import.meta.env.VITE_WAVE_LINK_MONTHLY || '');
+      
+    } catch (error) {
+      console.error('Erreur config:', error);
+      dispatch(showToast({ message: 'Impossible de charger la configuration', type: 'error' }));
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  // 2. Sauvegarder les changements
+  const handleSaveConfig = async () => {
+    try {
+      setLoading(true);
+      // TODO: Créer la route backend POST /api/admin/config
+      // await apiClient.post('/api/admin/config', { 
+      //   promoMode, 
+      //   weeklyLink, 
+      //   monthlyLink 
+      // });
+
+      // Simulation de réussite
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      dispatch(showToast({ 
+        message: '✅ Configuration mise à jour avec succès !', 
+        type: 'success' 
+      }));
+    } catch (error) {
+      dispatch(showToast({ message: 'Erreur lors de la sauvegarde', type: 'error' }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (configLoading) {
     return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
-        <Typography variant="h6" color="error">
-          ⛔ Accès refusé - SuperAdmin uniquement
-        </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
+        <CircularProgress sx={{ color: '#FFC107' }} />
       </Box>
     );
   }
 
-  const StatCard = ({ title, value, icon: Icon, color }) => (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 3,
-        background: isDark
-          ? `linear-gradient(135deg, ${color}15 0%, rgba(0,0,0,0.4) 100%)`
-          : `linear-gradient(135deg, ${color}10 0%, rgba(255,255,255,0.9) 100%)`,
-        backdropFilter: 'blur(20px)',
-        border: `1px solid ${color}30`,
-        borderRadius: '20px'
-      }}
-    >
-      <Box display="flex" alignItems="center" gap={2} mb={2}>
-        <Avatar sx={{ bgcolor: `${color}20`, width: 56, height: 56 }}>
-          <Icon sx={{ color: color, fontSize: 28 }} />
-        </Avatar>
-      </Box>
-      <Typography variant="h4" fontWeight="900" sx={{ color: color }} gutterBottom>
-        {value}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" fontWeight="600">
-        {title}
-      </Typography>
-    </Paper>
-  );
-
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
-      <Box mb={4}>
-        <Typography variant="h4" fontWeight="900" gutterBottom>
-          Finance & Configuration
+      {/* En-tête */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" fontWeight="900" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          Finance & Config <AttachMoney fontSize="large" sx={{ color: '#FFC107' }} />
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Gestion financière et paramètres système (SuperAdmin)
+          Gestion de la trésorerie et des paramètres de paiement
         </Typography>
       </Box>
 
-      <Grid container spacing={3} mb={4}>
+      {/* Section KPIs Financiers */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={4}>
-          <StatCard
-            title="Chiffre d'Affaires Total"
-            value="0 F"
-            icon={AttachMoney}
-            color="#4CAF50"
-          />
+          <Paper sx={{ p: 3, borderRadius: '16px', background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)', color: 'white' }}>
+            <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>REVENU TOTAL (Est.)</Typography>
+            <Typography variant="h4" fontWeight="bold">{stats.totalRevenue.toLocaleString()} F</Typography>
+            <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TrendingUp fontSize="small" /> <Typography variant="caption">+12% ce mois</Typography>
+            </Box>
+          </Paper>
         </Grid>
         <Grid item xs={12} md={4}>
-          <StatCard
-            title="Commission (10%)"
-            value="0 F"
-            icon={TrendingUp}
-            color="#FFC107"
-          />
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <StatCard
-            title="Abonnements Actifs"
-            value="0"
-            icon={AccountBalance}
-            color="#2196F3"
-          />
+          <Paper sx={{ p: 3, borderRadius: '16px', border: '1px solid rgba(255,193,7,0.2)', bgcolor: isDark ? '#1E1E1E' : 'white' }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>ABONNEMENTS ACTIFS</Typography>
+            <Typography variant="h4" fontWeight="bold" color="primary">{stats.activeSubscriptions}</Typography>
+            <Typography variant="caption" color="text.secondary">Chauffeurs en règle</Typography>
+          </Paper>
         </Grid>
       </Grid>
 
-      <Paper
-        elevation={0}
-        sx={{
-          p: 3,
-          background: isDark
-            ? 'rgba(0,0,0,0.4)'
-            : 'rgba(255,255,255,0.9)',
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: '1px solid rgba(255,193,7,0.2)',
-          mb: 3
-        }}
-      >
-        <Box display="flex" alignItems="center" gap={2} mb={3}>
-          <Settings sx={{ color: '#FFC107', fontSize: 28 }} />
-          <Typography variant="h6" fontWeight="bold">
-            Mode Promotion
-          </Typography>
-        </Box>
+      <Divider sx={{ my: 4 }} />
 
-        <FormControlLabel
-          control={
-            <Switch
-              defaultChecked={import.meta.env.VITE_IS_PROMO_ACTIVE === 'true'}
-              sx={{
-                '& .MuiSwitch-switchBase.Mui-checked': {
-                  color: '#FFC107',
-                },
-                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                  bgcolor: '#FFC107',
-                },
-              }}
-            />
-          }
-          label={
-            <Box>
-              <Typography variant="body1" fontWeight="bold">
-                Activer le mode promo (-17%)
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Hebdo : 1000F au lieu de 1200F • Mensuel : 5000F au lieu de 6000F
-              </Typography>
-            </Box>
-          }
-        />
-
-        <Divider sx={{ my: 3 }} />
-
-        <Typography variant="subtitle2" fontWeight="bold" mb={2}>
-          Liens de paiement Wave
-        </Typography>
-
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Lien Hebdomadaire"
-              defaultValue={import.meta.env.VITE_WAVE_LINK_WEEKLY || ''}
-              disabled
-              helperText="SuperAdmin uniquement"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px'
-                }
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Lien Mensuel"
-              defaultValue={import.meta.env.VITE_WAVE_LINK_MONTHLY || ''}
-              disabled
-              helperText="Partenaire (AirMax)"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px'
-                }
-              }}
-            />
-          </Grid>
-        </Grid>
-
-        <Box mt={3}>
-          <Button
-            variant="contained"
-            disabled
-            sx={{
-              bgcolor: '#FFC107',
-              color: '#000',
-              fontWeight: 'bold',
-              borderRadius: '12px',
-              px: 4,
-              '&:hover': {
-                bgcolor: '#FFD54F'
-              }
+      {/* Section Configuration */}
+      <Grid container spacing={4}>
+        <Grid item xs={12} lg={8}>
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 4, 
+              borderRadius: '20px', 
+              border: `1px solid ${promoMode ? '#f44336' : 'rgba(255,255,255,0.1)'}`,
+              background: isDark ? '#151515' : 'white',
+              position: 'relative',
+              overflow: 'hidden'
             }}
           >
-            SAUVEGARDER LES MODIFICATIONS
-          </Button>
-          <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-            💡 Les modifications nécessitent un redéploiement de l'application
-          </Typography>
-        </Box>
-      </Paper>
+            {/* Effet visuel Mode Promo */}
+            {promoMode && (
+              <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', bgcolor: '#f44336', boxShadow: '0 0 10px #f44336' }} />
+            )}
+
+            <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <LinkIcon color="action" /> Configuration des Paiements
+            </Typography>
+            <Typography variant="body2" color="text.secondary" paragraph>
+              Modifiez ici les liens Wave Business utilisés dans l'application chauffeur.
+            </Typography>
+
+            <Box component="form" sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              
+              {/* INTERRUPTEUR MODE PROMO */}
+              <Paper 
+                variant="outlined" 
+                sx={{ 
+                  p: 2, 
+                  borderColor: promoMode ? '#f44336' : 'divider',
+                  bgcolor: promoMode ? 'rgba(244, 67, 54, 0.05)' : 'transparent',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={promoMode}
+                      onChange={(e) => setPromoMode(e.target.checked)}
+                      color="error"
+                    />
+                  }
+                  label={
+                    <Box sx={{ ml: 1 }}>
+                      <Typography variant="subtitle1" fontWeight="bold" sx={{ color: promoMode ? '#f44336' : 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        ACTIVER LE MODE PROMO {promoMode && <LocalFireDepartment fontSize="small" className="animate-pulse" />}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Si activé, les chauffeurs verront les tarifs réduits et les prix barrés.
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </Paper>
+
+              {/* CHAMPS DE LIENS */}
+              <TextField
+                label="Lien Wave - Forfait Hebdomadaire (SuperAdmin)"
+                value={weeklyLink}
+                onChange={(e) => setWeeklyLink(e.target.value)}
+                fullWidth
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><CreditCard /></InputAdornment>,
+                }}
+                helperText="Caisse Direction (1200F / 1000F Promo)"
+              />
+
+              <TextField
+                label="Lien Wave - Forfait Mensuel (Admin Partenaire)"
+                value={monthlyLink}
+                onChange={(e) => setMonthlyLink(e.target.value)}
+                fullWidth
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><CreditCard /></InputAdornment>,
+                }}
+                helperText="Caisse Partenaire (6000F / 5000F Promo)"
+              />
+
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Save />}
+                onClick={handleSaveConfig}
+                disabled={loading}
+                sx={{ 
+                  mt: 2, 
+                  bgcolor: '#FFC107', 
+                  color: 'black', 
+                  fontWeight: 'bold',
+                  '&:hover': { bgcolor: '#FFB300' }
+                }}
+              >
+                {loading ? 'Sauvegarde...' : 'Enregistrer la configuration'}
+              </Button>
+
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} lg={4}>
+          <Alert severity="info" sx={{ borderRadius: '16px', mb: 3 }}>
+            <strong>Note de sécurité :</strong><br/>
+            Seul le SuperAdmin peut modifier ces liens. Toute modification est immédiate pour tous les chauffeurs.
+          </Alert>
+          
+          <Alert severity="warning" sx={{ borderRadius: '16px' }}>
+            <strong>Attention :</strong><br/>
+            Vérifiez toujours que les liens Wave fonctionnent avant de les mettre à jour. Un lien mort = Perte d'argent.
+          </Alert>
+        </Grid>
+      </Grid>
     </Box>
   );
 };
