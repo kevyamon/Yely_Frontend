@@ -4,6 +4,7 @@ import { Box, Typography, Button, IconButton, Stack, CircularProgress, Alert } f
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { login, reset } from '../features/auth/authSlice';
+import { showToast } from '../features/common/uiSlice';
 import AppInput from '../components/ui/AppInput';
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -19,7 +20,33 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
 
   useEffect(() => {
-    if (isSuccess || user) { navigate('/home'); }
+    if (isSuccess && user) {
+      // Toast de succès
+      dispatch(showToast({
+        message: `✅ Bienvenue ${user.name} !`,
+        type: 'success'
+      }));
+      
+      // Redirection selon le rôle
+      if (user.role === 'superAdmin' || user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/home');
+      }
+    }
+    
+    if (isError) {
+      // Toast d'erreur
+      let errorMsg = message || 'Une erreur est survenue';
+      if (errorMsg.includes('incorrect')) {
+        errorMsg = '🔒 Email ou mot de passe incorrect';
+      }
+      dispatch(showToast({
+        message: errorMsg,
+        type: 'error'
+      }));
+    }
+    
     return () => { dispatch(reset()); };
   }, [user, isError, isSuccess, message, navigate, dispatch]);
 
@@ -27,6 +54,16 @@ const LoginPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.email || !formData.password) {
+      dispatch(showToast({
+        message: '⚠️ Veuillez remplir tous les champs',
+        type: 'warning'
+      }));
+      return;
+    }
+    
     dispatch(login({ emailOrPhone: formData.email, password: formData.password }));
   };
 
@@ -35,13 +72,11 @@ const LoginPage = () => {
       minHeight: '100vh', 
       bgcolor: '#f8f9fa', 
       px: 2, py: 4,
-      // --- CORRECTIF ANTI-MODE NUIT ---
       color: 'black',
       '& .MuiInputBase-root': { color: 'black' },
       '& .MuiInputLabel-root': { color: '#666' },
-      '& .MuiTypography-root': { color: 'black' }, // Force les titres en noir
-      '& .MuiTypography-colorTextSecondary': { color: '#666 !important' }, // Force les sous-titres en gris
-      // --------------------------------
+      '& .MuiTypography-root': { color: 'black' },
+      '& .MuiTypography-colorTextSecondary': { color: '#666 !important' },
     }}>
       <Stack direction="row" alignItems="center" mb={6}>
         <IconButton onClick={() => navigate('/')} sx={{ mr: 2, bgcolor: 'white', boxShadow: 1, color: 'black' }}>
@@ -53,8 +88,6 @@ const LoginPage = () => {
         <Typography variant="h4" fontWeight="bold" gutterBottom>Bon retour ! 👋</Typography>
         <Typography variant="body1" color="textSecondary">Connectez-vous pour continuer.</Typography>
       </Box>
-
-      {isError && <Alert severity="error" sx={{ mb: 3 }}>{message}</Alert>}
 
       <form onSubmit={handleSubmit}>
         <AppInput name="email" label="Email ou Téléphone" type="text" icon={<EmailIcon />} onChange={handleChange} />

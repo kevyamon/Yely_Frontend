@@ -18,14 +18,16 @@ import {
   FilterList as FilterIcon,
 } from '@mui/icons-material';
 import { AnimatePresence } from 'framer-motion';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
 
 import ValidationCard from '../../components/ui/ValidationCard';
 import ProofImageModal from '../../components/ui/ProofImageModal';
+import { showToast } from '../../features/common/uiSlice';
 
 function ValidationCenter() {
   const theme = useTheme();
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const isSuperAdmin = user?.role === 'superAdmin';
 
@@ -34,7 +36,15 @@ function ValidationCenter() {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [filterTab, setFilterTab] = useState('all'); // all | weekly | monthly
+  const [filterTab, setFilterTab] = useState('all');
+
+  // Configuration axios avec token
+  const apiClient = axios.create({
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+    headers: {
+      'Authorization': `Bearer ${user?.token}`,
+    },
+  });
 
   useEffect(() => {
     fetchPendingTransactions();
@@ -43,10 +53,22 @@ function ValidationCenter() {
   const fetchPendingTransactions = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get('/api/admin/validations/pending');
+      const { data } = await apiClient.get('/admin/validations/pending');
       setTransactions(data);
     } catch (error) {
       console.error('Erreur chargement:', error);
+      
+      let errorMsg = '❌ Impossible de charger les demandes';
+      if (error.response?.status === 401) {
+        errorMsg = '🔒 Vous devez vous reconnecter';
+      } else if (error.message === 'Network Error') {
+        errorMsg = '📡 Vérifiez votre connexion internet';
+      }
+      
+      dispatch(showToast({
+        message: errorMsg,
+        type: 'error'
+      }));
     } finally {
       setLoading(false);
     }
@@ -55,14 +77,29 @@ function ValidationCenter() {
   const handleApprove = async (transactionId) => {
     try {
       setActionLoading(true);
-      await axios.put(`/api/admin/validations/${transactionId}/approve`);
+      await apiClient.put(`/admin/validations/${transactionId}/approve`);
       
       // Retirer de la liste
       setTransactions((prev) => prev.filter((t) => t._id !== transactionId));
       
-      alert('✅ Abonnement activé avec succès !');
+      // Toast de succès avec nom du chauffeur
+      const driverName = selectedTransaction?.driver?.name || 'Le chauffeur';
+      dispatch(showToast({
+        message: `✅ ${driverName} peut maintenant travailler !`,
+        type: 'success'
+      }));
     } catch (error) {
-      alert('❌ Erreur: ' + (error.response?.data?.message || 'Impossible de valider'));
+      let errorMsg = '❌ Impossible de valider';
+      if (error.response?.status === 401) {
+        errorMsg = '🔒 Session expirée. Reconnectez-vous';
+      } else if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      }
+      
+      dispatch(showToast({
+        message: errorMsg,
+        type: 'error'
+      }));
     } finally {
       setActionLoading(false);
     }
@@ -71,14 +108,25 @@ function ValidationCenter() {
   const handleReject = async (transactionId, reason) => {
     try {
       setActionLoading(true);
-      await axios.put(`/api/admin/validations/${transactionId}/reject`, { reason });
+      await apiClient.put(`/admin/validations/${transactionId}/reject`, { reason });
       
       // Retirer de la liste
       setTransactions((prev) => prev.filter((t) => t._id !== transactionId));
       
-      alert('❌ Demande rejetée. Le chauffeur a été notifié.');
+      dispatch(showToast({
+        message: '✅ Demande rejetée. Le chauffeur a été informé',
+        type: 'info'
+      }));
     } catch (error) {
-      alert('❌ Erreur: ' + (error.response?.data?.message || 'Impossible de rejeter'));
+      let errorMsg = '❌ Impossible de rejeter';
+      if (error.response?.status === 401) {
+        errorMsg = '🔒 Session expirée. Reconnectez-vous';
+      }
+      
+      dispatch(showToast({
+        message: errorMsg,
+        type: 'error'
+      }));
     } finally {
       setActionLoading(false);
     }
@@ -91,19 +139,19 @@ function ValidationCenter() {
 
   // Filtrage des transactions
   const filteredTransactions = transactions.filter((t) => {
-    // Si admin normal, il ne voit QUE les mensuels
     if (!isSuperAdmin && t.subscriptionType !== 'MONTHLY') return false;
-
-    // Filtre par onglet
     if (filterTab === 'weekly') return t.subscriptionType === 'WEEKLY';
     if (filterTab === 'monthly') return t.subscriptionType === 'MONTHLY';
-    return true; // all
+    return true;
   });
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: 2 }}>
         <CircularProgress sx={{ color: '#FFD700' }} />
+        <Typography variant="body1" color="text.secondary">
+          Chargement des demandes...
+        </Typography>
       </Box>
     );
   }
@@ -124,7 +172,7 @@ function ValidationCenter() {
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         <Chip
           icon={<ScheduleIcon />}
-          label={`${transactions.length} en attente`}
+          label={`${filteredTransactions.length} en attente`}
           sx={{
             bgcolor: 'rgba(255, 152, 0, 0.1)',
             color: '#FF9800',
@@ -147,7 +195,7 @@ function ValidationCenter() {
       </Box>
 
       {/* Filtres (SuperAdmin uniquement) */}
-      {isSuperAdmin && (
+      {isSuperAdmin && transactions.length > 0 && (
         <Paper
           sx={{
             mb: 3,
@@ -173,7 +221,7 @@ function ValidationCenter() {
 
       {/* Liste des validations */}
       {filteredTransactions.length === 0 ? (
-        <Alert severity="info" sx={{ borderRadius: 2 }}>
+        <Alert severity="info" sx={{ borderRadius: 2, fontSize: '1rem' }}>
           🎉 Aucune demande en attente. Tout est validé !
         </Alert>
       ) : (

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { register, reset } from '../features/auth/authSlice';
+import { showToast } from '../features/common/uiSlice';
 import AppInput from '../components/ui/AppInput';
 
 // Icônes
@@ -29,11 +30,48 @@ const RegisterPage = () => {
   });
 
   useEffect(() => {
-    if (isSuccess || user) {
-      navigate('/login');
+    if (isSuccess && user) {
+      // Toast de succès personnalisé
+      let successMsg = '';
+      if (user.role === 'superAdmin') {
+        successMsg = `👑 Bienvenue SuperAdmin ${user.name} !`;
+      } else if (user.role === 'driver') {
+        successMsg = `🚗 Compte chauffeur créé ! Bienvenue ${user.name}`;
+      } else {
+        successMsg = `✅ Compte créé avec succès ! Bienvenue ${user.name}`;
+      }
+      
+      dispatch(showToast({
+        message: successMsg,
+        type: 'success'
+      }));
+      
+      // Redirection
+      setTimeout(() => {
+        if (user.role === 'superAdmin' || user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (user.role === 'driver') {
+          navigate('/subscription');
+        } else {
+          navigate('/home');
+        }
+      }, 1000);
     }
+    
+    if (isError) {
+      // Toast d'erreur
+      let errorMsg = message || 'Une erreur est survenue';
+      if (errorMsg.includes('existe déjà')) {
+        errorMsg = '⚠️ Ce compte existe déjà. Essayez de vous connecter';
+      }
+      dispatch(showToast({
+        message: errorMsg,
+        type: 'error'
+      }));
+    }
+    
     return () => { dispatch(reset()); };
-  }, [user, isSuccess, navigate, dispatch]);
+  }, [user, isSuccess, isError, message, navigate, dispatch]);
 
   const handleChange = (e) => {
     if (isError) dispatch(reset());
@@ -42,6 +80,29 @@ const RegisterPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validations
+    if (!formData.name.trim()) {
+      dispatch(showToast({ message: '⚠️ Veuillez entrer votre nom', type: 'warning' }));
+      return;
+    }
+    if (!formData.email.trim() || !formData.email.includes('@')) {
+      dispatch(showToast({ message: '⚠️ Email invalide', type: 'warning' }));
+      return;
+    }
+    if (!formData.phone.trim()) {
+      dispatch(showToast({ message: '⚠️ Veuillez entrer votre numéro', type: 'warning' }));
+      return;
+    }
+    if (formData.password.length < 6) {
+      dispatch(showToast({ message: '⚠️ Mot de passe trop court (min 6 caractères)', type: 'warning' }));
+      return;
+    }
+    if (role === 'driver' && (!formData.vehicleModel || !formData.vehiclePlate)) {
+      dispatch(showToast({ message: '⚠️ Remplissez les infos du véhicule', type: 'warning' }));
+      return;
+    }
+    
     const userData = {
       name: formData.name, email: formData.email, phone: formData.phone, password: formData.password, role: role,
       ...(role === 'driver' && { vehicleModel: formData.vehicleModel, vehiclePlate: formData.vehiclePlate, vehicleColor: formData.vehicleColor }),
@@ -54,12 +115,10 @@ const RegisterPage = () => {
       minHeight: '100vh', 
       bgcolor: '#f8f9fa', 
       px: 2, py: 4,
-      // --- CORRECTIF ANTI-MODE NUIT ---
-      color: 'black', // Force le texte général en noir
-      '& .MuiInputBase-root': { color: 'black' }, // Force le texte des inputs en noir
-      '& .MuiInputLabel-root': { color: '#666' }, // Force les labels en gris
-      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.2)' }, // Force les bordures visibles
-      // --------------------------------
+      color: 'black',
+      '& .MuiInputBase-root': { color: 'black' },
+      '& .MuiInputLabel-root': { color: '#666' },
+      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.2)' },
     }}>
       
       <Stack direction="row" alignItems="center" mb={2}>
@@ -68,12 +127,6 @@ const RegisterPage = () => {
         </IconButton>
         <Typography variant="h5" fontWeight="bold">Créer un compte</Typography>
       </Stack>
-
-      <Collapse in={isError}>
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 3, boxShadow: '0 4px 12px rgba(255, 0, 0, 0.1)', fontWeight: 'bold' }}>
-          {message}
-        </Alert>
-      </Collapse>
 
       {/* SÉLECTEUR RÔLE */}
       <Paper elevation={0} sx={{ p: 1, bgcolor: '#e0e0e0', borderRadius: 50, mb: 4, display: 'flex' }}>
