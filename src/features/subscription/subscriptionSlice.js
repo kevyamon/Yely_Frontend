@@ -6,6 +6,7 @@ import axios from 'axios';
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_URL = `${BACKEND_URL}/api/subscription`;
 
+// Action : Envoyer la preuve
 export const submitSubscriptionProof = createAsyncThunk(
   'subscription/submitProof',
   async (formData, thunkAPI) => {
@@ -32,6 +33,7 @@ export const submitSubscriptionProof = createAsyncThunk(
   }
 );
 
+// Action : Vérifier le statut
 export const checkSubscriptionStatus = createAsyncThunk(
     'subscription/checkStatus',
     async (_, thunkAPI) => {
@@ -59,7 +61,7 @@ const subscriptionSlice = createSlice({
     isLoading: false,
     isSuccess: false,
     error: null,
-    subscriptionStatus: 'inactive',
+    subscriptionStatus: 'inactive', // inactive, active
     subscriptionData: null,
     lastTransaction: null,
   },
@@ -68,7 +70,7 @@ const subscriptionSlice = createSlice({
       state.isLoading = false;
       state.isSuccess = false;
       state.error = null;
-      state.lastTransaction = null;
+      // On ne reset pas lastTransaction tout de suite pour garder l'état pending affiché
     },
   },
   extraReducers: (builder) => {
