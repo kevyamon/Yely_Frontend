@@ -10,7 +10,7 @@ import socketService from '../../services/socketService';
 import AppDrawer from '../../components/ui/AppDrawer'; 
 import LeafletMap from '../../components/map/LeafletMap';
 import DriverRequestModal from '../../components/ui/DriverRequestModal';
-import RideSummaryModal from '../../components/ui/RideSummaryModal'; // <--- IMPORT PROPRE
+import RideSummaryModal from '../../components/ui/RideSummaryModal';
 
 import MenuIcon from '@mui/icons-material/Menu';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
@@ -42,6 +42,7 @@ const DriverHome = ({ user, userLocation }) => {
   useEffect(() => {
     if (!user) return;
 
+    // A. OFFRE REÇUE
     const handleNewRequest = (ride) => {
       console.log("⚡ OFFRE REÇUE :", ride);
       if (rideStatus === 0 && isOnline) {
@@ -50,10 +51,13 @@ const DriverHome = ({ user, userLocation }) => {
       }
     };
 
+    // B. ANNULATION (Correction Bug Fantôme)
     const handleRideCancelled = ({ rideId }) => {
-        console.log("🚫 Course annulée :", rideId);
+        console.log("🚫 SIGNAL ANNULATION :", rideId);
+        
+        // Si c'est l'offre qu'on regarde OU la course active
         if ((incomingRide && incomingRide._id === rideId) || (activeRideId === rideId)) {
-            setIncomingRide(null);
+            setIncomingRide(null); // FERME LE MODAL
             setActiveRideId(null);
             setRideStatus(0);
             dispatch(showToast({ message: 'Course annulée par le client', type: 'info' }));
@@ -68,6 +72,7 @@ const DriverHome = ({ user, userLocation }) => {
       socketService.off('ride_cancelled', handleRideCancelled);
     };
   }, [user, rideStatus, isOnline, incomingRide, activeRideId]);
+
 
   // --- TRACKING GPS ---
   useEffect(() => {
@@ -92,6 +97,8 @@ const DriverHome = ({ user, userLocation }) => {
 
 
   // --- ACTIONS ---
+
+  // 1. ACCEPTER (Avec gestion d'erreur Annulation)
   const handleAcceptRide = async () => {
     if (!incomingRide) return;
     try {
@@ -101,7 +108,13 @@ const DriverHome = ({ user, userLocation }) => {
         setRideStatus(2); 
         dispatch(showToast({ message: 'Course acceptée ! 🏁', type: 'success' }));
     } catch (error) {
-        dispatch(showToast({ message: 'Erreur acceptation', type: 'error' }));
+        console.error("Erreur acceptation:", error);
+        
+        // On affiche le message précis renvoyé par le backend ("Course annulée" ou "Indisponible")
+        const errorMsg = error.data?.message || 'Erreur lors de l\'acceptation';
+        dispatch(showToast({ message: errorMsg, type: 'error' }));
+        
+        // Quoi qu'il arrive, si ça échoue, on ferme le modal
         setIncomingRide(null);
         setRideStatus(0);
     }
@@ -120,14 +133,9 @@ const DriverHome = ({ user, userLocation }) => {
         setRideStatus(3); 
         dispatch(showToast({ message: 'Course démarrée ! 🚕', type: 'info' }));
       } else if (rideStatus === 3) { 
-        // 🏁 FIN DE COURSE
         const result = await completeRide(activeRideId).unwrap();
-        
-        // On prépare le résumé
         setCompletedRideData(result);
         setShowSummary(true); 
-
-        // On reset l'état de course immédiatement en arrière-plan
         setRideStatus(0); 
         setActiveRideId(null);
       }
@@ -147,9 +155,7 @@ const DriverHome = ({ user, userLocation }) => {
   return (
     <Box sx={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
       
-      {/* --- LES MODALS --- */}
-      
-      {/* 1. Proposition de course */}
+      {/* 1. Modal Proposition */}
       <DriverRequestModal 
         isVisible={rideStatus === 1 && incomingRide} 
         ride={incomingRide}
@@ -157,7 +163,7 @@ const DriverHome = ({ user, userLocation }) => {
         onDecline={handleDeclineRide}
       />
 
-      {/* 2. Résumé de Fin (C'est propre maintenant !) */}
+      {/* 2. Modal Résumé */}
       <RideSummaryModal 
         isVisible={showSummary}
         ride={completedRideData} 

@@ -13,7 +13,7 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       keepUnusedDataFor: 5,
     }),
 
-    // 2. Créer (Client)
+    // 2. Créer (Passager)
     createRide: builder.mutation({
       query: (rideData) => ({
         url: '/rides',
@@ -23,7 +23,7 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ['Ride'],
     }),
 
-    // 3. Accepter (Driver)
+    // 3. Accepter (Chauffeur)
     acceptRide: builder.mutation({
       query: (rideId) => ({
         url: `/rides/${rideId}/accept`,
@@ -32,7 +32,7 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ['Ride'],
     }),
 
-    // 4. Démarrer (Driver)
+    // 4. Démarrer (Chauffeur)
     startRide: builder.mutation({
       query: (rideId) => ({
         url: `/rides/${rideId}/start`,
@@ -41,7 +41,7 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ['Ride'],
     }),
 
-    // 5. Terminer (Driver)
+    // 5. Terminer (Chauffeur)
     completeRide: builder.mutation({
       query: (rideId) => ({
         url: `/rides/${rideId}/complete`,
@@ -49,8 +49,8 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ['Ride'],
     }),
-
-    // 6. Annuler (Client/Driver) - NOUVEAU
+    
+    // 6. Annuler (Client/Chauffeur)
     cancelRide: builder.mutation({
       query: (rideId) => ({
         url: `/rides/${rideId}/cancel`,
@@ -58,7 +58,6 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ['Ride'],
     }),
-
   }),
 });
 
@@ -68,5 +67,5 @@ export const {
   useAcceptRideMutation,
   useStartRideMutation,
   useCompleteRideMutation,
-  useCancelRideMutation // <--- Exporté !
+  useCancelRideMutation // <--- IMPORTANT
 } = ridesApiSlice;
