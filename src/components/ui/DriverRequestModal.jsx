@@ -14,12 +14,9 @@ const DriverRequestModal = ({ ride, isVisible, onAccept, onDecline }) => {
       {isVisible && (
         <Box
           sx={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 9999,
-            backdropFilter: 'blur(8px)', // Flou arrière-plan
-            bgcolor: 'rgba(0,0,0,0.4)',
+            zIndex: 9999, backdropFilter: 'blur(8px)', bgcolor: 'rgba(0,0,0,0.4)',
           }}
         >
           <motion.div
@@ -31,12 +28,10 @@ const DriverRequestModal = ({ ride, isVisible, onAccept, onDecline }) => {
             <Box
               sx={{
                 width: '90vw', maxWidth: 400,
-                bgcolor: 'rgba(255, 255, 255, 0.9)', // Glassmorphism
-                borderRadius: '30px',
-                p: 3,
-                boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
-                textAlign: 'center',
-                border: '1px solid rgba(255,255,255,0.5)'
+                bgcolor: 'white', // Fond blanc pur pour contraste max
+                borderRadius: '30px', p: 3,
+                boxShadow: '0 20px 50px rgba(0,0,0,0.2)', textAlign: 'center',
+                color: 'text.primary' // Force l'écriture en noir/gris
               }}
             >
               <Typography variant="overline" fontWeight="900" color="primary" sx={{ letterSpacing: 2 }}>
@@ -45,33 +40,33 @@ const DriverRequestModal = ({ ride, isVisible, onAccept, onDecline }) => {
 
               {/* CLIENT */}
               <Stack direction="row" alignItems="center" justifyContent="center" spacing={2} sx={{ mt: 2, mb: 3 }}>
-                <Avatar sx={{ width: 60, height: 60, bgcolor: '#FFC107', border: '3px solid white' }}>
+                <Avatar sx={{ width: 60, height: 60, bgcolor: '#FFC107', color: 'black', fontWeight: 'bold' }}>
                     {ride.client?.name?.charAt(0) || "C"}
                 </Avatar>
                 <Box textAlign="left">
-                    <Typography variant="h6" fontWeight="bold">
+                    <Typography variant="h6" fontWeight="bold" sx={{ color: 'black' }}>
                         {ride.client?.name || "Client"}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{ color: '#666' }}>
                         ⭐ {ride.client?.rating || "5.0"} • {ride.paymentMethod === 'cash' ? 'Espèces' : 'Wave'}
                     </Typography>
                 </Box>
               </Stack>
 
               {/* TRAJET */}
-              <Box sx={{ bgcolor: 'white', borderRadius: '20px', p: 2, mb: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+              <Box sx={{ bgcolor: '#F5F5F5', borderRadius: '20px', p: 2, mb: 3 }}>
                 <Stack direction="row" alignItems="center" mb={1.5}>
-                    <LocationOnIcon color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="body1" fontWeight="bold" noWrap>
+                    <LocationOnIcon color="error" sx={{ mr: 1 }} />
+                    <Typography variant="body1" fontWeight="bold" sx={{ color: 'black' }} noWrap>
                         {ride.pickupLocation?.address || "Position client"}
                     </Typography>
                 </Stack>
                 <Stack direction="row" justifyContent="space-between" mt={2}>
-                    <Box display="flex" alignItems="center" sx={{ bgcolor: '#f5f5f5', px: 1.5, py: 0.5, borderRadius: 10 }}>
+                    <Box display="flex" alignItems="center" sx={{ bgcolor: 'white', px: 1.5, py: 0.5, borderRadius: 10 }}>
                         <AccessTimeIcon sx={{ fontSize: 16, mr: 0.5, color: '#666' }} />
-                        <Typography variant="caption" fontWeight="bold">~5 min</Typography>
+                        <Typography variant="caption" fontWeight="bold" color="text.primary">~5 min</Typography>
                     </Box>
-                    <Box display="flex" alignItems="center" sx={{ bgcolor: '#E8F5E9', px: 1.5, py: 0.5, borderRadius: 10 }}>
+                    <Box display="flex" alignItems="center" sx={{ bgcolor: 'white', px: 1.5, py: 0.5, borderRadius: 10 }}>
                         <AttachMoneyIcon sx={{ fontSize: 16, mr: 0.5, color: 'green' }} />
                         <Typography variant="caption" fontWeight="bold" color="success.main">
                             {ride.price} FCFA
@@ -82,10 +77,10 @@ const DriverRequestModal = ({ ride, isVisible, onAccept, onDecline }) => {
 
               {/* ACTIONS */}
               <Stack direction="row" spacing={2}>
-                <Button fullWidth variant="outlined" color="error" onClick={onDecline} sx={{ borderRadius: '15px', py: 1.5, fontWeight: 'bold' }}>
+                <Button fullWidth variant="outlined" color="error" onClick={onDecline} sx={{ borderRadius: '15px', py: 1.5, fontWeight: 'bold', border: '2px solid' }}>
                     REFUSER
                 </Button>
-                <Button fullWidth variant="contained" color="success" onClick={onAccept} sx={{ borderRadius: '15px', py: 1.5, fontWeight: 'bold' }}>
+                <Button fullWidth variant="contained" color="success" onClick={onAccept} sx={{ borderRadius: '15px', py: 1.5, fontWeight: 'bold', boxShadow: '0 8px 20px rgba(76, 175, 80, 0.3)' }}>
                     ACCEPTER
                 </Button>
               </Stack>

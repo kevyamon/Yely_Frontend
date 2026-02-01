@@ -1,9 +1,9 @@
 // src/features/rides/ridesApiSlice.js
-import { apiSlice } from '../api/apiSlice'; // ✅ CORRECTION : Chemin exact (voisin)
+import { apiSlice } from '../api/apiSlice';
 
 export const ridesApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // 1. Historique des courses
+    // 1. Historique
     getRideHistory: builder.query({
       query: () => ({
         url: '/rides/history',
@@ -13,7 +13,7 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       keepUnusedDataFor: 5,
     }),
 
-    // 2. Créer une course (Passager)
+    // 2. Créer (Client)
     createRide: builder.mutation({
       query: (rideData) => ({
         url: '/rides',
@@ -23,7 +23,7 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ['Ride'],
     }),
 
-    // 3. Accepter une course (Chauffeur)
+    // 3. Accepter (Driver)
     acceptRide: builder.mutation({
       query: (rideId) => ({
         url: `/rides/${rideId}/accept`,
@@ -32,7 +32,7 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ['Ride'],
     }),
 
-    // 4. Démarrer la course - Client à bord (Chauffeur)
+    // 4. Démarrer (Driver)
     startRide: builder.mutation({
       query: (rideId) => ({
         url: `/rides/${rideId}/start`,
@@ -41,7 +41,7 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ['Ride'],
     }),
 
-    // 5. Terminer la course (Chauffeur)
+    // 5. Terminer (Driver)
     completeRide: builder.mutation({
       query: (rideId) => ({
         url: `/rides/${rideId}/complete`,
@@ -49,14 +49,24 @@ export const ridesApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ['Ride'],
     }),
+
+    // 6. Annuler (Client/Driver) - NOUVEAU
+    cancelRide: builder.mutation({
+      query: (rideId) => ({
+        url: `/rides/${rideId}/cancel`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Ride'],
+    }),
+
   }),
 });
 
-// EXPORT DES HOOKS (Indispensable pour HomePage)
 export const { 
   useGetRideHistoryQuery,
   useCreateRideMutation,
   useAcceptRideMutation,
   useStartRideMutation,
-  useCompleteRideMutation
+  useCompleteRideMutation,
+  useCancelRideMutation // <--- Exporté !
 } = ridesApiSlice;
