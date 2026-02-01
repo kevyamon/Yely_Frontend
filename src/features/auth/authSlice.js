@@ -2,10 +2,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// Utilisation de l'URL du .env ou fallback sur localhost
+// Utilisation de l'URL du .env ou fallback
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_URL = `${BACKEND_URL}/api/users`;
 
+// Récupération utilisateur stocké
 const user = JSON.parse(localStorage.getItem('user'));
 
 const initialState = {
@@ -25,47 +26,53 @@ export const register = createAsyncThunk('auth/register', async (userData, thunk
     }
     return response.data;
   } catch (error) {
-    // --- AMÉLIORATION DE LA GESTION D'ERREUR ---
     let message;
-    
     if (error.response && error.response.data && error.response.data.message) {
-      // 1. Erreur renvoyée par notre Backend (ex: "Utilisateur existe déjà")
       message = error.response.data.message;
     } else if (error.message === "Network Error") {
-      // 2. Erreur de connexion (Serveur éteint ou pas d'internet)
       message = "Impossible de contacter le serveur. Vérifiez votre connexion.";
     } else {
-      // 3. Autre erreur technique
       message = error.message || error.toString();
     }
-    
     return thunkAPI.rejectWithValue(message);
   }
 });
 
-// FONCTION 2 : SE CONNECTER
+// FONCTION 2 : SE CONNECTER (Avec Debug Logs)
 export const login = createAsyncThunk('auth/login', async (userData, thunkAPI) => {
+  console.log('🔵 [AuthSlice] Tentative de connexion avec :', userData);
+  
   try {
+    // On envoie la requête
     const response = await axios.post(`${API_URL}/login`, userData);
+    
+    console.log('🟢 [AuthSlice] Réponse Succès :', response.data);
+
     if (response.data) {
       localStorage.setItem('user', JSON.stringify(response.data));
     }
     return response.data;
+
   } catch (error) {
-    // --- MÊME AMÉLIORATION ICI ---
+    console.error('🔴 [AuthSlice] Erreur Catchée :', error);
+
     let message;
     if (error.response && error.response.data && error.response.data.message) {
+      // C'est ici que le Backend nous parle (ex: "Non connecté" ou "Mot de passe faux")
       message = error.response.data.message;
+      console.log('🔴 [AuthSlice] Message du Backend :', message);
     } else if (error.message === "Network Error") {
       message = "Impossible de contacter le serveur. Vérifiez votre connexion.";
     } else {
       message = error.message || error.toString();
     }
+    // On rejette proprement (ce qui déclenche .rejected dans le slice)
     return thunkAPI.rejectWithValue(message);
   }
 });
 
 export const logout = createAsyncThunk('auth/logout', async () => {
+  await axios.post(`${API_URL}/logout`); // Optionnel : prévenir le back
   localStorage.removeItem('user');
 });
 
@@ -84,7 +91,7 @@ export const authSlice = createSlice({
     builder
       .addCase(register.pending, (state) => {
         state.isLoading = true;
-        state.isError = false; // On efface les vieilles erreurs quand on commence
+        state.isError = false; 
         state.message = '';
       })
       .addCase(register.fulfilled, (state, action) => {
@@ -95,7 +102,7 @@ export const authSlice = createSlice({
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.message = action.payload; // Ici on récupère notre beau message français
+        state.message = action.payload;
         state.user = null;
       })
       .addCase(login.pending, (state) => {

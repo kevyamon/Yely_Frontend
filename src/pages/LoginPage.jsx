@@ -1,6 +1,6 @@
 // src/pages/LoginPage.jsx
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, IconButton, Stack, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, Button, IconButton, Stack, CircularProgress, Alert, Collapse } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { login, reset } from '../features/auth/authSlice';
@@ -18,16 +18,37 @@ const LoginPage = () => {
 
   const [formData, setFormData] = useState({ email: '', password: '' });
 
+  // Gestion de la redirection après succès
   useEffect(() => {
-    if (isSuccess || user) { navigate('/home'); }
-    return () => { dispatch(reset()); };
-  }, [user, isError, isSuccess, message, navigate, dispatch]);
+    if (isSuccess || user) {
+      navigate('/home');
+    }
+    // On reset les erreurs quand on quitte ou que le composant change
+    return () => {
+      dispatch(reset());
+    };
+  }, [user, isSuccess, navigate, dispatch]);
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setFormData((prevState) => ({
+      ...prevState,
+      [e.target.name]: e.target.value,
+    }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    dispatch(login({ emailOrPhone: formData.email, password: formData.password }));
+    
+    // On prépare les données CORRECTEMENT (email + password)
+    const userData = { 
+      email: formData.email, 
+      password: formData.password 
+    };
+
+    console.log('🚀 [LoginPage] Envoi du formulaire :', userData);
+    
+    // On dispatch simplement. Les erreurs seront gérées par le state (isError, message)
+    dispatch(login(userData));
   };
 
   return (
@@ -35,13 +56,11 @@ const LoginPage = () => {
       minHeight: '100vh', 
       bgcolor: '#f8f9fa', 
       px: 2, py: 4,
-      // --- CORRECTIF ANTI-MODE NUIT ---
       color: 'black',
       '& .MuiInputBase-root': { color: 'black' },
       '& .MuiInputLabel-root': { color: '#666' },
-      '& .MuiTypography-root': { color: 'black' }, // Force les titres en noir
-      '& .MuiTypography-colorTextSecondary': { color: '#666 !important' }, // Force les sous-titres en gris
-      // --------------------------------
+      '& .MuiTypography-root': { color: 'black' },
+      '& .MuiTypography-colorTextSecondary': { color: '#666 !important' },
     }}>
       <Stack direction="row" alignItems="center" mb={6}>
         <IconButton onClick={() => navigate('/')} sx={{ mr: 2, bgcolor: 'white', boxShadow: 1, color: 'black' }}>
@@ -54,11 +73,30 @@ const LoginPage = () => {
         <Typography variant="body1" color="textSecondary">Connectez-vous pour continuer.</Typography>
       </Box>
 
-      {isError && <Alert severity="error" sx={{ mb: 3 }}>{message}</Alert>}
+      {/* Affichage des erreurs venant du Slice */}
+      <Collapse in={isError}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+          {message || "Erreur de connexion"}
+        </Alert>
+      </Collapse>
 
       <form onSubmit={handleSubmit}>
-        <AppInput name="email" label="Email ou Téléphone" type="text" icon={<EmailIcon />} onChange={handleChange} />
-        <AppInput name="password" label="Mot de passe" type="password" icon={<LockIcon />} onChange={handleChange} />
+        <AppInput 
+          name="email" 
+          label="Email ou Téléphone" 
+          type="text" 
+          icon={<EmailIcon />} 
+          value={formData.email}
+          onChange={handleChange} 
+        />
+        <AppInput 
+          name="password" 
+          label="Mot de passe" 
+          type="password" 
+          icon={<LockIcon />} 
+          value={formData.password}
+          onChange={handleChange} 
+        />
 
         <Button 
           type="submit" variant="contained" color="primary" fullWidth size="large" disabled={isLoading}

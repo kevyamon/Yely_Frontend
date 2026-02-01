@@ -20,7 +20,7 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const { user, isLoading, isError, isSuccess, message } = useSelector((state) => state.auth);
+  const { user, isLoading, isError, message } = useSelector((state) => state.auth);
   
   const [role, setRole] = useState('rider');
   const [formData, setFormData] = useState({
@@ -28,25 +28,58 @@ const RegisterPage = () => {
     vehicleModel: '', vehiclePlate: '', vehicleColor: ''
   });
 
+  // Nettoyage au démontage uniquement
   useEffect(() => {
-    if (isSuccess || user) {
-      navigate('/login');
-    }
     return () => { dispatch(reset()); };
-  }, [user, isSuccess, navigate, dispatch]);
+  }, [dispatch]);
+
+  // Si l'utilisateur est déjà connecté, on le redirige
+  useEffect(() => {
+    if (user) {
+      navigate('/home');
+    }
+  }, [user, navigate]);
 
   const handleChange = (e) => {
     if (isError) dispatch(reset());
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // 1. Préparation des données PROPRES pour le Backend
     const userData = {
-      name: formData.name, email: formData.email, phone: formData.phone, password: formData.password, role: role,
-      ...(role === 'driver' && { vehicleModel: formData.vehicleModel, vehiclePlate: formData.vehiclePlate, vehicleColor: formData.vehicleColor }),
+      name: formData.name, 
+      email: formData.email, 
+      phone: formData.phone, 
+      password: formData.password, 
+      role: role,
+      // Mapping conditionnel pour les chauffeurs
+      ...(role === 'driver' && { 
+        licensePlate: formData.vehiclePlate, // Backend attend licensePlate
+        vehicleType: 'Standard', // Valeur par défaut obligatoire pour l'enum backend
+        // On passe les infos supplémentaires dans un format que tu pourras utiliser plus tard
+        vehicleInfo: {
+            model: formData.vehicleModel,
+            color: formData.vehicleColor
+        }
+      }),
     };
-    dispatch(register(userData));
+
+    // 2. Exécution Blindée (Try/Catch avec Unwrap)
+    try {
+      // .unwrap() permet de récupérer le résultat ou de lancer une erreur si ça échoue
+      // C'est ce qui empêche le fameux "Uncaught (in promise)"
+      await dispatch(register(userData)).unwrap();
+      
+      // Succès : On redirige (vers Login ou Home selon ta logique)
+      navigate('/login'); 
+    } catch (err) {
+      // Erreur : Elle est déjà gérée par le reducer (isError, message),
+      // mais le catch ici empêche le crash console.
+      console.error("Échec inscription:", err);
+    }
   };
 
   return (
@@ -55,10 +88,10 @@ const RegisterPage = () => {
       bgcolor: '#f8f9fa', 
       px: 2, py: 4,
       // --- CORRECTIF ANTI-MODE NUIT ---
-      color: 'black', // Force le texte général en noir
-      '& .MuiInputBase-root': { color: 'black' }, // Force le texte des inputs en noir
-      '& .MuiInputLabel-root': { color: '#666' }, // Force les labels en gris
-      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.2)' }, // Force les bordures visibles
+      color: 'black',
+      '& .MuiInputBase-root': { color: 'black' },
+      '& .MuiInputLabel-root': { color: '#666' },
+      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.2)' },
       // --------------------------------
     }}>
       

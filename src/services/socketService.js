@@ -7,37 +7,49 @@ class SocketService {
   socket = null;
   pendingListeners = [];
 
+  // AJOUT CRITIQUE : Pour savoir si on est prêt
+  get isConnected() {
+    return this.socket && this.socket.connected;
+  }
+
   connect(token) {
-    // Sécurité anti-doublon pour éviter les erreurs jaunes
-    if (this.socket && (this.socket.connected || this.socket.connecting)) return;
+    return new Promise((resolve, reject) => {
+      if (!token) {
+        console.warn('⚠️ [Socket] Pas de token. Connexion ignorée.');
+        return resolve(null);
+      }
 
-    this.socket = io(SOCKET_URL, {
-      auth: { token },
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: 5, // Limite les tentatives pour ne pas spammer
+      // Si déjà connecté, on rend la main tout de suite
+      if (this.socket && (this.socket.connected || this.socket.connecting)) {
+        return resolve(this.socket);
+      }
+
+      this.socket = io(SOCKET_URL, {
+        auth: { token },
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+      });
+
+      this.socket.on('connect', () => {
+        console.log('🟢 [Socket] Connecté avec succès ! (ID:', this.socket.id, ')');
+        this._flushPendingListeners();
+        resolve(this.socket);
+      });
+
+      this.socket.on('connect_error', (err) => {
+        console.error('🔴 [Socket] Erreur silencieuse:', err.message);
+      });
     });
-
-    // On masque les erreurs dans la console (le navigateur peut encore en afficher en rouge si c'est critique, c'est inévitable)
-    this.socket.on('connect_error', () => {
-      // Silence radio sur les erreurs de connexion
-    });
-
-    if (this.pendingListeners.length > 0) {
-        this.pendingListeners.forEach(({ eventName, callback }) => {
-            this.socket.on(eventName, callback);
-        });
-        this.pendingListeners = [];
-    }
   }
 
   disconnect() {
     if (this.socket) {
-      // On ne coupe que si c'est vraiment connecté pour éviter le warning "closed before established"
       if (this.socket.connected) {
         this.socket.disconnect();
       }
       this.socket = null;
+      console.log('👋 [Socket] Déconnecté.');
     }
   }
 
@@ -57,9 +69,22 @@ class SocketService {
     }
   }
 
+  // BLINDAGE DE L'ENVOI
   emit(eventName, data) {
-    if (this.socket && this.socket.connected) {
+    if (this.isConnected) {
       this.socket.emit(eventName, data);
+    } else {
+      console.warn(`⚠️ [Socket] Emit ignoré "${eventName}" : Socket pas encore prêt.`);
+      // On ne plante pas, on prévient juste.
+    }
+  }
+
+  _flushPendingListeners() {
+    if (this.pendingListeners.length > 0) {
+      this.pendingListeners.forEach(({ eventName, callback }) => {
+        if (this.socket) this.socket.on(eventName, callback);
+      });
+      this.pendingListeners = [];
     }
   }
 }
